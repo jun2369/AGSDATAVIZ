@@ -38,7 +38,7 @@ const App: React.FC = () => {
     return isNaN(date.getTime()) ? null : date;
   };
 
-  // 处理Excel数据
+  // @ts-ignore
   const processExcelData = (data: any[]): ProcessedData => {
     const processed: ProcessedData = {
       lessThan12: [],
