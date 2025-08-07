@@ -38,7 +38,7 @@ const App: React.FC = () => {
     return isNaN(date.getTime()) ? null : date;
   };
 
-  // @ts-ignore
+  // 处理Excel数据
   const processExcelData = (data: any[]): ProcessedData => {
     const processed: ProcessedData = {
       lessThan12: [],
@@ -158,9 +158,21 @@ const App: React.FC = () => {
           <div style={{ 
             padding: '20px', 
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: 'white'
+            color: 'white',
+            position: 'relative'
           }}>
-            <h2 style={{ margin: 0 }}>KPI Dashboard</h2>
+            <h2 style={{ margin: 0, display: 'inline-block' }}>KPI Dashboard</h2>
+            <div className="warning-icon-container">
+              <span className="warning-icon">⚠️</span>
+              <div className="warning-tooltip">
+                <strong>Please note the following:</strong>
+                <ol>
+                  <li>All date and time are in <strong>UTC standard time</strong>, not local time.</li>
+                  <li>Shipment data only includes records with a <strong>creation date after July 1, 2025</strong>.</li>
+                  <li>The data is <strong>not auto-synced</strong> and reflects <strong>only the content of the uploaded file</strong>.</li>
+                </ol>
+              </div>
+            </div>
           </div>
           
           {/* Upload Section */}
