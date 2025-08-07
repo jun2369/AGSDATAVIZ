@@ -1,0 +1,355 @@
+/* MissingData.css - Simplified styles for PGA Entry Status Check */
+
+.missing-data-container {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* Header */
+.missing-data-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 30px;
+  border-radius: 12px;
+  margin-bottom: 25px;
+  color: white;
+}
+
+.missing-data-header h1 {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.header-subtitle {
+  margin-top: 8px;
+  font-size: 16px;
+  opacity: 0.95;
+}
+
+/* Filters Section */
+.filters-section {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 25px;
+  flex-wrap: wrap;
+  padding: 20px;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.filter-label {
+  font-weight: 600;
+  font-size: 14px;
+  color: #2c3e50;
+}
+
+.filter-select {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  font-size: 14px;
+  cursor: pointer;
+  min-width: 100px;
+  transition: all 0.3s ease;
+}
+
+.filter-select:hover {
+  border-color: #667eea;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.category-filter {
+  border: 2px solid #dc3545;
+  font-weight: 600;
+}
+
+.category-filter:hover {
+  border-color: #dc3545;
+  background-color: #fff5f5;
+}
+
+.file-info {
+  margin-left: auto;
+  font-size: 13px;
+  color: #666;
+}
+
+/* Summary Stats */
+.summary-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  margin-bottom: 25px;
+}
+
+.stat-box {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  text-align: center;
+  border-top: 4px solid #667eea;
+  transition: transform 0.3s ease;
+}
+
+.stat-box:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.stat-number {
+  font-size: 36px;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 8px;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: #7f8c8d;
+  font-weight: 500;
+}
+
+/* Table Section */
+.pga-table-section {
+  background: white;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.table-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #667eea;
+}
+
+.pga-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.pga-table thead {
+  background: #f8f9fa;
+}
+
+.pga-table th {
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #495057;
+  border: 1px solid #dee2e6;
+  font-size: 14px;
+}
+
+.pga-table tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+.pga-table tbody tr:hover {
+  background: #f8f9fa;
+}
+
+.pga-table td {
+  padding: 10px 12px;
+  border: 1px solid #dee2e6;
+  font-size: 14px;
+  color: #495057;
+}
+
+.pga-table td:first-child {
+  font-weight: 600;
+  color: #667eea;
+  text-align: center;
+  width: 60px;
+}
+
+/* Pagination Controls */
+.pagination-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.page-size-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.page-size-control label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #495057;
+}
+
+.page-size-select {
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.showing-text {
+  font-size: 14px;
+  color: #666;
+  margin-left: 10px;
+}
+
+.page-navigation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-btn {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.page-btn:hover:not(:disabled) {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+}
+
+.page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #e9ecef;
+}
+
+.page-info {
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #495057;
+}
+
+/* Milestone Section Specific */
+.milestone-section {
+  margin-top: 30px;
+}
+
+.milestone-title {
+  border-bottom-color: #dc3545 !important;
+}
+
+.table-subtitle {
+  font-size: 13px;
+  color: #7f8c8d;
+  margin-top: -10px;
+  margin-bottom: 15px;
+  font-style: italic;
+}
+
+.no-data-message {
+  text-align: center;
+  padding: 30px;
+  color: #7f8c8d;
+  font-size: 14px;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+/* No Data Section */
+.no-data-section {
+  text-align: center;
+  padding: 60px 20px;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  margin-top: 30px;
+}
+
+.no-data-icon {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 20px;
+}
+
+.no-data-section p {
+  font-size: 16px;
+  color: #7f8c8d;
+  margin-bottom: 10px;
+}
+
+.no-data-hint {
+  font-size: 14px;
+  color: #95a5a6;
+  line-height: 1.6;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .filters-section {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .filter-group {
+    width: 100%;
+  }
+  
+  .filter-select {
+    width: 100%;
+  }
+  
+  .file-info {
+    margin-left: 0;
+    margin-top: 10px;
+  }
+  
+  .summary-stats {
+    grid-template-columns: 1fr;
+  }
+  
+  .pagination-controls {
+    flex-direction: column;
+  }
+  
+  .page-navigation {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .pga-table {
+    font-size: 12px;
+  }
+  
+  .pga-table th,
+  .pga-table td {
+    padding: 8px;
+  }
+}
