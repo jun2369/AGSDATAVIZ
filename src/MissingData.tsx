@@ -12,6 +12,7 @@ interface MissingMilestoneEntry {
   mawbNumber: string;
   category: string;
   consignedDate: Date;
+  missingMilestones: string;
 }
 
 interface MissingDataProps {
@@ -34,6 +35,15 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
   const [pgaPageSize, setPgaPageSize] = useState(30);
   const [milestoneCurrentPage, setMilestoneCurrentPage] = useState(1);
   const [milestonePageSize, setMilestonePageSize] = useState(30);
+
+  // Column mappings for missing milestones
+  const milestoneColumns: { [key: number]: string } = {
+    10: 'Release Date',           // K column - index 10
+    11: 'CPSC/PGA Check Date',   // L column - index 11
+    12: 'CPSC/PGA Release Date', // M column - index 12
+    13: 'Custom Final Release',   // N column - index 13
+    15: 'Handover Time'          // P column - index 15
+  };
 
   // Helper function to parse Excel date
   const parseExcelDate = (value: any): Date | null => {
@@ -117,28 +127,36 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
         // Only process if O column is not empty and category is T01
         if (consignedDate && category === 'T01') {
           // Check columns P(15), N(13), M(12), L(11), K(10)
-          const columnsToCheck = [
-            row[15], // P column - index 15
-            row[13], // N column - index 13
-            row[12], // M column - index 12
-            row[11], // L column - index 11
-            row[10]  // K column - index 10
-          ];
+          const columnsToCheck: { [key: number]: any } = {
+            15: row[15], // P column - index 15
+            13: row[13], // N column - index 13
+            12: row[12], // M column - index 12
+            11: row[11], // L column - index 11
+            10: row[10]  // K column - index 10
+          };
           
-          // Check if any of these columns is empty
-          const hasEmptyColumn = columnsToCheck.some(value => isEmpty(value));
+          // Find which columns are missing
+          const missingColumns: string[] = [];
+          Object.entries(columnsToCheck).forEach(([index, value]) => {
+            const indexNum = parseInt(index);
+            if (isEmpty(value) && milestoneColumns[indexNum]) {
+              missingColumns.push(milestoneColumns[indexNum]);
+            }
+          });
           
-          if (hasEmptyColumn) {
+          // If any column is missing, add to milestones
+          if (missingColumns.length > 0) {
             processedMilestones.push({
               category,
               port,
               mawbNumber,
-              consignedDate
+              consignedDate,
+              missingMilestones: missingColumns.join(', ')
             });
             validMilestoneCount++;
             
             if (i < 10) { // Log first few for debugging
-              console.log(`Row ${i + 1}: T01 Missing Milestone found - Port: ${port}, MAWB: ${mawbNumber}`);
+              console.log(`Row ${i + 1}: T01 Missing Milestone found - Port: ${port}, MAWB: ${mawbNumber}, Missing: ${missingColumns.join(', ')}`);
             }
           }
         }
@@ -255,7 +273,7 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
         )}
       </div>
 
-      {/* Summary Stats */}
+      {/* Summary Stats - Removed Total Issues box */}
       <div className="summary-stats">
         <div className="stat-box">
           <div className="stat-number">{filteredPGAEntries.length}</div>
@@ -263,11 +281,7 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
         </div>
         <div className="stat-box" style={{ borderTopColor: '#dc3545' }}>
           <div className="stat-number">{filteredMilestones.length}</div>
-          <div className="stat-label">T01 Missing Milestones</div>
-        </div>
-        <div className="stat-box" style={{ borderTopColor: '#17a2b8' }}>
-          <div className="stat-number">{filteredPGAEntries.length + filteredMilestones.length}</div>
-          <div className="stat-label">Total Issues</div>
+          <div className="stat-label">T01 shipment with Missing Milestones</div>
         </div>
       </div>
 
@@ -280,8 +294,8 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Port (Column B)</th>
-                  <th>MAWB Number (Column C)</th>
+                  <th>Port</th>
+                  <th>MAWB Number</th>
                 </tr>
               </thead>
               <tbody>
@@ -360,7 +374,7 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
 
       {/* T01 Missing Milestone Table */}
       <div className="pga-table-section milestone-section">
-        <h3 className="table-title milestone-title">T01 Missing Milestones ({filteredMilestones.length} total)</h3>
+        <h3 className="table-title milestone-title">T01 shipment with Missing Milestones ({filteredMilestones.length} total)</h3>
         <p className="table-subtitle">Records with O column filled but missing data in P, N, M, L, or K columns</p>
         {filteredMilestones.length > 0 ? (
           <>
@@ -368,8 +382,9 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Port (Column B)</th>
-                  <th>MAWB Number (Column C)</th>
+                  <th>Port</th>
+                  <th>MAWB Number</th>
+                  <th>Missing Milestone</th>
                 </tr>
               </thead>
               <tbody>
@@ -378,6 +393,7 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
                     <td>{milestoneStartIndex + index + 1}</td>
                     <td>{entry.port}</td>
                     <td>{entry.mawbNumber}</td>
+                    <td className="missing-milestones-column">{entry.missingMilestones}</td>
                   </tr>
                 ))}
               </tbody>
