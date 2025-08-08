@@ -1,4 +1,5 @@
 import React, { useState, useEffect} from 'react';
+import * as XLSX from 'xlsx';
 import './KPIStyles.css';
 
 interface ExcelRow {
@@ -51,12 +52,12 @@ const DriverKPI: React.FC<DriverKPIProps> = ({ uploadedData }) => {
 
   // 为每个表格维护独立的过滤器状态
   const [tableFilters, setTableFilters] = useState<Record<string, TableFilters>>({
-    lessThanZero: { port: '', mawbNumber: '', sortField: null, sortDirection: null, currentPage: 1, pageSize: 30 },
-    zeroTo12: { port: '', mawbNumber: '', sortField: null, sortDirection: null, currentPage: 1, pageSize: 30 },
-    between12And24: { port: '', mawbNumber: '', sortField: null, sortDirection: null, currentPage: 1, pageSize: 30 },
-    between24And48: { port: '', mawbNumber: '', sortField: null, sortDirection: null, currentPage: 1, pageSize: 30 },
-    between48And72: { port: '', mawbNumber: '', sortField: null, sortDirection: null, currentPage: 1, pageSize: 30 },
-    moreThan72: { port: '', mawbNumber: '', sortField: null, sortDirection: null, currentPage: 1, pageSize: 30 }
+    lessThanZero: { port: '', mawbNumber: '', sortField: null, sortDirection: null, currentPage: 1, pageSize: 10 },
+    zeroTo12: { port: '', mawbNumber: '', sortField: null, sortDirection: null, currentPage: 1, pageSize: 10 },
+    between12And24: { port: '', mawbNumber: '', sortField: null, sortDirection: null, currentPage: 1, pageSize: 10 },
+    between24And48: { port: '', mawbNumber: '', sortField: null, sortDirection: null, currentPage: 1, pageSize: 10 },
+    between48And72: { port: '', mawbNumber: '', sortField: null, sortDirection: null, currentPage: 1, pageSize: 10 },
+    moreThan72: { port: '', mawbNumber: '', sortField: null, sortDirection: null, currentPage: 1, pageSize: 10 }
   });
 
   // 处理Excel数据
@@ -340,6 +341,23 @@ const DriverKPI: React.FC<DriverKPIProps> = ({ uploadedData }) => {
     updateTableFilter(tableKey, 'currentPage', 1); // 重置到第一页
   };
 
+  // Export to Excel function
+  const exportToExcel = (data: ExcelRow[], filename: string) => {
+    const exportData = data.map(row => ({
+      'Port': row.port,
+      'MAWB Number': row.mawbNumber,
+      'ATA Date': row.ataDate.toLocaleString(),
+      'Arrived at Warehouse Date': row.arrivedAtWarehouse.toLocaleString(),
+      'Time Diff (hours)': row.timeDiff ? row.timeDiff.toFixed(2) : 'N/A',
+      'Category': row.category
+    }));
+    
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+    XLSX.writeFile(wb, `${filename}_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   // 渲染表格
   const renderTable = (title: string, rows: ExcelRow[], color: string, tableKey: string) => {
     const filteredByPortAndCategory = filterByPortAndCategory(rows);
@@ -354,16 +372,59 @@ const DriverKPI: React.FC<DriverKPIProps> = ({ uploadedData }) => {
     const endIndex = startIndex + filters.pageSize;
     const paginatedData = filteredAndSorted.slice(startIndex, endIndex);
     
+    // Check if we need to show export button (only for lessThanZero and moreThan72)
+    const showExportButton = tableKey === 'lessThanZero' || tableKey === 'moreThan72';
+    
     return (
       <div className="kpi-table-section" style={{ marginBottom: '30px' }}>
-        <h3 style={{ 
-          color: color, 
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
           borderBottom: `2px solid ${color}`, 
           paddingBottom: '10px',
-          marginBottom: '15px' 
+          marginBottom: '15px'
         }}>
-          {title} ({filteredAndSorted.length} records)
-        </h3>
+          <h3 style={{ 
+            color: color, 
+            margin: 0
+          }}>
+            {title} ({filteredAndSorted.length} records)
+          </h3>
+          {showExportButton && paginatedData.length > 0 && (
+            <button
+              onClick={() => {
+                const filename = tableKey === 'lessThanZero' ? 'Negative_Hours' : 'More_Than_72_Hours';
+                exportToExcel(paginatedData, filename);
+              }}
+              style={{
+                padding: '8px 16px',
+                background: '#28a745',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#218838';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(40, 167, 69, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#28a745';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              📊 Export to Excel
+            </button>
+          )}
+        </div>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ 
             width: '100%', 

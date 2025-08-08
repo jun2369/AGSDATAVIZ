@@ -1,4 +1,5 @@
 import React, { useState, useEffect} from 'react';
+import * as XLSX from 'xlsx';
 import './KPIStyles.css';
 
 interface ExcelRow {
@@ -56,7 +57,7 @@ const DeliveryKPI: React.FC<DeliveryKPIProps> = ({ uploadedData }) => {
     'ALL',
   ]); // 新增：可用的类别
 
-  // 为每个表格维护独立的过滤器状态
+  // 为每个表格维护独立的过滤器状态 - 改为默认10行
   const [tableFilters, setTableFilters] = useState<
     Record<string, TableFilters>
   >({
@@ -66,7 +67,7 @@ const DeliveryKPI: React.FC<DeliveryKPIProps> = ({ uploadedData }) => {
       sortField: null,
       sortDirection: null,
       currentPage: 1,
-      pageSize: 30,
+      pageSize: 10,
     },
     zeroTo12: {
       port: '',
@@ -74,7 +75,7 @@ const DeliveryKPI: React.FC<DeliveryKPIProps> = ({ uploadedData }) => {
       sortField: null,
       sortDirection: null,
       currentPage: 1,
-      pageSize: 30,
+      pageSize: 10,
     },
     between12And24: {
       port: '',
@@ -82,7 +83,7 @@ const DeliveryKPI: React.FC<DeliveryKPIProps> = ({ uploadedData }) => {
       sortField: null,
       sortDirection: null,
       currentPage: 1,
-      pageSize: 30,
+      pageSize: 10,
     },
     between24And48: {
       port: '',
@@ -90,7 +91,7 @@ const DeliveryKPI: React.FC<DeliveryKPIProps> = ({ uploadedData }) => {
       sortField: null,
       sortDirection: null,
       currentPage: 1,
-      pageSize: 30,
+      pageSize: 10,
     },
     between48And72: {
       port: '',
@@ -98,7 +99,7 @@ const DeliveryKPI: React.FC<DeliveryKPIProps> = ({ uploadedData }) => {
       sortField: null,
       sortDirection: null,
       currentPage: 1,
-      pageSize: 30,
+      pageSize: 10,
     },
     moreThan72: {
       port: '',
@@ -106,7 +107,7 @@ const DeliveryKPI: React.FC<DeliveryKPIProps> = ({ uploadedData }) => {
       sortField: null,
       sortDirection: null,
       currentPage: 1,
-      pageSize: 30,
+      pageSize: 10,
     },
   });
 
@@ -420,6 +421,23 @@ const DeliveryKPI: React.FC<DeliveryKPIProps> = ({ uploadedData }) => {
     updateTableFilter(tableKey, 'currentPage', 1); // 重置到第一页
   };
 
+  // Export to Excel function
+  const exportToExcel = (data: ExcelRow[], filename: string) => {
+    const exportData = data.map(row => ({
+      'Port': row.port,
+      'MAWB Number': row.mawbNumber,
+      'Consigned to FM Carrier Date': row.consignedDate.toLocaleString(),
+      'Handover Time': row.handoverTime.toLocaleString(),
+      'Time Diff (hours)': row.timeDiff ? row.timeDiff.toFixed(2) : 'N/A',
+      'Category': row.category
+    }));
+    
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+    XLSX.writeFile(wb, `${filename}_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   // 渲染表格
   const renderTable = (
     title: string,
@@ -442,18 +460,63 @@ const DeliveryKPI: React.FC<DeliveryKPIProps> = ({ uploadedData }) => {
     const endIndex = startIndex + filters.pageSize;
     const paginatedData = filteredAndSorted.slice(startIndex, endIndex);
 
+    // Check if we need to show export button (only for lessThanZero and moreThan72)
+    const showExportButton = tableKey === 'lessThanZero' || tableKey === 'moreThan72';
+
     return (
       <div className="kpi-table-section" style={{ marginBottom: '30px' }}>
-        <h3
+        <div
           style={{
-            color: color,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
             borderBottom: `2px solid ${color}`,
             paddingBottom: '10px',
             marginBottom: '15px',
           }}
         >
-          {title} ({filteredAndSorted.length} records)
-        </h3>
+          <h3
+            style={{
+              color: color,
+              margin: 0,
+            }}
+          >
+            {title} ({filteredAndSorted.length} records)
+          </h3>
+          {showExportButton && paginatedData.length > 0 && (
+            <button
+              onClick={() => {
+                const filename = tableKey === 'lessThanZero' ? 'Delivery_Negative_Hours' : 'Delivery_More_Than_72_Hours';
+                exportToExcel(paginatedData, filename);
+              }}
+              style={{
+                padding: '8px 16px',
+                background: '#28a745',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#218838';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(40, 167, 69, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#28a745';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              📊 Export to Excel
+            </button>
+          )}
+        </div>
         <div style={{ overflowX: 'auto' }}>
           <table
             style={{

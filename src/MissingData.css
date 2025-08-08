@@ -1,4 +1,4 @@
-/* MissingData.css - Simplified styles for PGA Entry Status Check */
+/* MissingData.css - Updated with search and export features */
 
 .missing-data-container {
   width: 100%;
@@ -133,13 +133,163 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
+/* Header with Controls */
+.header-with-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.header-controls {
+  display: flex;
+  gap: 4px;
+}
+
+/* Sort Buttons */
+.sort-btn {
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s ease;
+  color: #6c757d;
+}
+
+.sort-btn:hover {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+}
+
+.sort-btn.asc,
+.sort-btn.desc {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+}
+
+/* Column Search Input */
+.column-search {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.column-search:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+/* Table Header Row with Export Button */
+.table-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #667eea;
+}
+
 .table-title {
   font-size: 18px;
   font-weight: 600;
   color: #2c3e50;
-  margin-bottom: 20px;
-  padding-bottom: 10px;
-  border-bottom: 2px solid #667eea;
+  margin: 0;
+  position: relative;
+}
+
+/* Title with Info Icon */
+.title-with-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Info Icon and Tooltip */
+.info-icon-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 10px;
+}
+
+.info-icon {
+  display: inline-block;
+  font-size: 16px;
+  cursor: help;
+  filter: sepia(100%) saturate(200%) hue-rotate(15deg) brightness(1.2);
+}
+
+.tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 8px;
+  padding: 10px 15px;
+  background: #333;
+  color: white;
+  font-size: 13px;
+  font-weight: normal;
+  border-radius: 6px;
+  white-space: normal;
+  width: 280px;
+  text-align: left;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: #333;
+}
+
+.info-icon-wrapper:hover .tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Export Button */
+.export-btn {
+  padding: 8px 16px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.export-btn:hover:not(:disabled) {
+  background: #218838;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+}
+
+.export-btn:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .pga-table {
@@ -158,6 +308,61 @@
   color: #495057;
   border: 1px solid #dee2e6;
   font-size: 14px;
+  vertical-align: top;
+}
+
+/* Header with Controls */
+.header-with-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.header-controls {
+  display: flex;
+  gap: 4px;
+}
+
+/* Sort and Filter Buttons */
+.sort-btn {
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s ease;
+  color: #6c757d;
+}
+
+.sort-btn:hover {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+}
+
+.sort-btn.asc,
+.sort-btn.desc {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+}
+
+/* Column Search Input */
+.column-search {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.column-search:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
 }
 
 .pga-table tbody tr {
@@ -268,6 +473,10 @@
   margin-top: 30px;
 }
 
+.milestone-section .table-header-row {
+  border-bottom-color: #dc3545;
+}
+
 .milestone-title {
   border-bottom-color: #dc3545 !important;
 }
@@ -280,13 +489,18 @@
   font-style: italic;
 }
 
-.no-data-message {
+/* No data message in table */
+.no-data-cell {
   text-align: center;
-  padding: 30px;
+  padding: 40px;
   color: #7f8c8d;
   font-size: 14px;
-  background: #f8f9fa;
-  border-radius: 6px;
+}
+
+/* No data message in table */
+td.no-data-message {
+  background: transparent;
+  padding: 40px;
 }
 
 /* No Data Section */
@@ -357,5 +571,42 @@
   .pga-table th,
   .pga-table td {
     padding: 8px;
+  }
+  
+  .table-header-row {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  
+  .title-with-info {
+    width: 100%;
+  }
+  
+  .info-icon-wrapper .tooltip {
+    left: 10px;
+    transform: translateX(0);
+    width: 90vw;
+    max-width: 280px;
+  }
+  
+  .info-icon-wrapper .tooltip::after {
+    left: 20px;
+    transform: translateX(0);
+  }
+  
+  .export-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .header-with-controls {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  .column-search {
+    margin-top: 4px;
   }
 }

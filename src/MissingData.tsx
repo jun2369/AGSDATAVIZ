@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import * as XLSX from 'xlsx';
 import './MissingData.css';
 
 interface PGAEntry {
@@ -19,6 +20,9 @@ interface MissingDataProps {
   uploadedData?: any;
 }
 
+type SortDirection = 'asc' | 'desc' | null;
+type SortField = 'port' | 'mawbNumber' | 'missingMilestones';
+
 const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
   const [pgaEntries, setPgaEntries] = useState<PGAEntry[]>([]);
   const [filteredPGAEntries, setFilteredPGAEntries] = useState<PGAEntry[]>([]);
@@ -30,19 +34,36 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
   const [availableCategories, setAvailableCategories] = useState<string[]>(['ALL']);
   const [availablePorts] = useState<string[]>(['ALL', 'ORD', 'JFK', 'MIA', 'LAX', 'DFW', 'SFO']);
   
-  // Separate pagination states for each table
+  // Separate pagination states for each table - default changed to 20
   const [pgaCurrentPage, setPgaCurrentPage] = useState(1);
-  const [pgaPageSize, setPgaPageSize] = useState(30);
+  const [pgaPageSize, setPgaPageSize] = useState(20);
   const [milestoneCurrentPage, setMilestoneCurrentPage] = useState(1);
-  const [milestonePageSize, setMilestonePageSize] = useState(30);
+  const [milestonePageSize, setMilestonePageSize] = useState(20);
+
+  // Search states for PGA table
+  const [pgaPortSearch, setPgaPortSearch] = useState('');
+  const [pgaMawbSearch, setPgaMawbSearch] = useState('');
+  
+  // Search states for Milestone table
+  const [milestonePortSearch, setMilestonePortSearch] = useState('');
+  const [milestoneMawbSearch, setMilestoneMawbSearch] = useState('');
+  const [milestoneMissingSearch, setMilestoneMissingSearch] = useState('');
+
+  // Sort states for PGA table
+  const [pgaSortField, setPgaSortField] = useState<'port' | 'mawbNumber' | null>(null);
+  const [pgaSortDirection, setPgaSortDirection] = useState<SortDirection>(null);
+
+  // Sort states for Milestone table
+  const [milestoneSortField, setMilestoneSortField] = useState<SortField | null>(null);
+  const [milestoneSortDirection, setMilestoneSortDirection] = useState<SortDirection>(null);
 
   // Column mappings for missing milestones
   const milestoneColumns: { [key: number]: string } = {
-    10: 'Release Date',           // K column - index 10
-    11: 'CPSC/PGA Check Date',   // L column - index 11
-    12: 'CPSC/PGA Release Date', // M column - index 12
-    13: 'Custom Final Release',   // N column - index 13
-    15: 'Handover Time'          // P column - index 15
+    10: 'Release Date',
+    11: 'CPSC/PGA Check Date',
+    12: 'CPSC/PGA Release Date',
+    13: 'Custom Final Release',
+    15: 'Handover Time'
   };
 
   // Helper function to parse Excel date
@@ -92,13 +113,13 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
       const dateToCheck = parseExcelDate(row[3]);
       if (dateToCheck && dateToCheck < filterDate) {
         filteredByDateCount++;
-        continue; // Skip data before 2025-07-01
+        continue;
       }
 
       // Common data extraction
-      const category = String(row[0] || '').trim().toUpperCase(); // A column
-      const port = String(row[1] || '').trim().toUpperCase(); // B column
-      const mawbNumber = String(row[2] || '').trim(); // C column
+      const category = String(row[0] || '').trim().toUpperCase();
+      const port = String(row[1] || '').trim().toUpperCase();
+      const mawbNumber = String(row[2] || '').trim();
 
       // Add category to the list if it's valid
       if (category === 'T01' || category === 'T86') {
@@ -120,22 +141,18 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
         }
 
         // 2. T01 Missing Milestone Check
-        // O column (index 14): Consigned to Final Mile Carrier Date
         const consignedDateValue = row[14];
         const consignedDate = parseExcelDate(consignedDateValue);
         
-        // Only process if O column is not empty and category is T01
         if (consignedDate && category === 'T01') {
-          // Check columns P(15), N(13), M(12), L(11), K(10)
           const columnsToCheck: { [key: number]: any } = {
-            15: row[15], // P column - index 15
-            13: row[13], // N column - index 13
-            12: row[12], // M column - index 12
-            11: row[11], // L column - index 11
-            10: row[10]  // K column - index 10
+            15: row[15],
+            13: row[13],
+            12: row[12],
+            11: row[11],
+            10: row[10]
           };
           
-          // Find which columns are missing
           const missingColumns: string[] = [];
           Object.entries(columnsToCheck).forEach(([index, value]) => {
             const indexNum = parseInt(index);
@@ -144,7 +161,6 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
             }
           });
           
-          // If any column is missing, add to milestones
           if (missingColumns.length > 0) {
             processedMilestones.push({
               category,
@@ -154,10 +170,6 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
               missingMilestones: missingColumns.join(', ')
             });
             validMilestoneCount++;
-            
-            if (i < 10) { // Log first few for debugging
-              console.log(`Row ${i + 1}: T01 Missing Milestone found - Port: ${port}, MAWB: ${mawbNumber}, Missing: ${missingColumns.join(', ')}`);
-            }
           }
         }
       }
@@ -183,8 +195,38 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
     }
   }, [uploadedData]);
 
-  // Apply filters for PGA entries
-  useEffect(() => {
+  // Handle PGA table sorting
+  const handlePgaSort = (field: 'port' | 'mawbNumber') => {
+    if (pgaSortField === field) {
+      if (pgaSortDirection === 'asc') {
+        setPgaSortDirection('desc');
+      } else if (pgaSortDirection === 'desc') {
+        setPgaSortDirection(null);
+        setPgaSortField(null);
+      }
+    } else {
+      setPgaSortField(field);
+      setPgaSortDirection('asc');
+    }
+  };
+
+  // Handle Milestone table sorting
+  const handleMilestoneSort = (field: SortField) => {
+    if (milestoneSortField === field) {
+      if (milestoneSortDirection === 'asc') {
+        setMilestoneSortDirection('desc');
+      } else if (milestoneSortDirection === 'desc') {
+        setMilestoneSortDirection(null);
+        setMilestoneSortField(null);
+      }
+    } else {
+      setMilestoneSortField(field);
+      setMilestoneSortDirection('asc');
+    }
+  };
+
+  // Apply filters and sorting for PGA entries
+  const processedPGAEntries = useMemo(() => {
     let filtered = [...pgaEntries];
 
     if (selectedCategory !== 'ALL') {
@@ -195,22 +237,119 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
       filtered = filtered.filter(entry => entry.port === selectedPort);
     }
 
-    setFilteredPGAEntries(filtered);
-    setPgaCurrentPage(1);
-  }, [selectedCategory, selectedPort, pgaEntries]);
+    // Apply search filters
+    if (pgaPortSearch) {
+      filtered = filtered.filter(entry => 
+        entry.port.toLowerCase().includes(pgaPortSearch.toLowerCase())
+      );
+    }
 
-  // Apply filters for Missing Milestones (T01 only, but still apply port filter)
-  useEffect(() => {
+    if (pgaMawbSearch) {
+      filtered = filtered.filter(entry => 
+        entry.mawbNumber.toLowerCase().includes(pgaMawbSearch.toLowerCase())
+      );
+    }
+
+    // Apply sorting
+    if (pgaSortField && pgaSortDirection) {
+      filtered.sort((a, b) => {
+        const aVal = a[pgaSortField];
+        const bVal = b[pgaSortField];
+        
+        if (pgaSortDirection === 'asc') {
+          return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+        } else {
+          return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
+        }
+      });
+    }
+
+    return filtered;
+  }, [pgaEntries, selectedCategory, selectedPort, pgaPortSearch, pgaMawbSearch, pgaSortField, pgaSortDirection]);
+
+  // Apply filters and sorting for Missing Milestones
+  const processedMilestones = useMemo(() => {
     let filtered = [...missingMilestones];
 
-    // T01 missing milestones are already T01 only, but we can still filter by port
     if (selectedPort !== 'ALL') {
       filtered = filtered.filter(entry => entry.port === selectedPort);
     }
 
-    setFilteredMilestones(filtered);
+    // Apply search filters
+    if (milestonePortSearch) {
+      filtered = filtered.filter(entry => 
+        entry.port.toLowerCase().includes(milestonePortSearch.toLowerCase())
+      );
+    }
+
+    if (milestoneMawbSearch) {
+      filtered = filtered.filter(entry => 
+        entry.mawbNumber.toLowerCase().includes(milestoneMawbSearch.toLowerCase())
+      );
+    }
+
+    if (milestoneMissingSearch) {
+      filtered = filtered.filter(entry => 
+        entry.missingMilestones.toLowerCase().includes(milestoneMissingSearch.toLowerCase())
+      );
+    }
+
+    // Apply sorting
+    if (milestoneSortField && milestoneSortDirection) {
+      filtered.sort((a, b) => {
+        const aVal = a[milestoneSortField];
+        const bVal = b[milestoneSortField];
+        
+        if (milestoneSortDirection === 'asc') {
+          return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+        } else {
+          return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
+        }
+      });
+    }
+
+    return filtered;
+  }, [missingMilestones, selectedPort, milestonePortSearch, milestoneMawbSearch, milestoneMissingSearch, milestoneSortField, milestoneSortDirection]);
+
+  // Update filtered entries whenever processed entries change
+  useEffect(() => {
+    setFilteredPGAEntries(processedPGAEntries);
+    setPgaCurrentPage(1);
+  }, [processedPGAEntries]);
+
+  useEffect(() => {
+    setFilteredMilestones(processedMilestones);
     setMilestoneCurrentPage(1);
-  }, [selectedPort, missingMilestones]);
+  }, [processedMilestones]);
+
+  // Export to Excel function
+  const exportToExcel = (data: any[], filename: string) => {
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+    XLSX.writeFile(wb, `${filename}.xlsx`);
+  };
+
+  // Export PGA data
+  const exportPGAData = () => {
+    const dataToExport = paginatedPGAData.map((entry, index) => ({
+      '#': pgaStartIndex + index + 1,
+      'Port': entry.port,
+      'MAWB Number': entry.mawbNumber
+    }));
+    exportToExcel(dataToExport, `PGA_Entry_Status_${new Date().toISOString().split('T')[0]}`);
+  };
+
+  // Export Milestone data
+  const exportMilestoneData = () => {
+    const dataToExport = paginatedMilestoneData.map((entry, index) => ({
+      '#': milestoneStartIndex + index + 1,
+      'Port': entry.port,
+      'MAWB Number': entry.mawbNumber,
+      'Missing Milestone': entry.missingMilestones
+    }));
+    exportToExcel(dataToExport, `T01_Missing_Milestones_${new Date().toISOString().split('T')[0]}`);
+  };
 
   // PGA Pagination calculations
   const pgaTotalPages = Math.ceil(filteredPGAEntries.length / pgaPageSize);
@@ -233,7 +372,6 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
 
       {/* Filters Section */}
       <div className="filters-section">
-        {/* Category Filter (T01/T86) */}
         {availableCategories.length > 1 && (
           <div className="filter-group">
             <label className="filter-label">Category:</label>
@@ -249,7 +387,6 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
           </div>
         )}
 
-        {/* Port Filter */}
         <div className="filter-group">
           <label className="filter-label">Port:</label>
           <select 
@@ -263,7 +400,6 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
           </select>
         </div>
 
-        {/* File Info */}
         {uploadedData && (
           <div className="file-info">
             File: {uploadedData.fileName} | Total rows: {uploadedData.data?.length || 0}
@@ -273,7 +409,7 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
         )}
       </div>
 
-      {/* Summary Stats - Removed Total Issues box */}
+      {/* Summary Stats */}
       <div className="summary-stats">
         <div className="stat-box">
           <div className="stat-number">{filteredPGAEntries.length}</div>
@@ -287,178 +423,315 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
 
       {/* PGA Entry Status Table */}
       <div className="pga-table-section">
-        <h3 className="table-title">PGA Entry Status "N" Records ({filteredPGAEntries.length} total)</h3>
-        {filteredPGAEntries.length > 0 ? (
-          <>
-            <table className="pga-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Port</th>
-                  <th>MAWB Number</th>
+        <div className="table-header-row">
+          <h3 className="table-title">PGA Entry Status "N" Records ({filteredPGAEntries.length} total)</h3>
+          <button className="export-btn" onClick={exportPGAData} disabled={paginatedPGAData.length === 0}>
+            📊 Export to Excel
+          </button>
+        </div>
+        
+        <table className="pga-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>
+                <div className="header-with-controls">
+                  <span>Port</span>
+                  <div className="header-controls">
+                    <button 
+                      className={`sort-btn ${pgaSortField === 'port' ? pgaSortDirection : ''}`}
+                      onClick={() => handlePgaSort('port')}
+                      title="Sort"
+                    >
+                      {pgaSortField === 'port' && pgaSortDirection === 'asc' ? '↑' : 
+                       pgaSortField === 'port' && pgaSortDirection === 'desc' ? '↓' : '↕'}
+                    </button>
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  className="column-search"
+                  placeholder="Search port..."
+                  value={pgaPortSearch}
+                  onChange={(e) => setPgaPortSearch(e.target.value)}
+                />
+              </th>
+              <th>
+                <div className="header-with-controls">
+                  <span>MAWB Number</span>
+                  <div className="header-controls">
+                    <button 
+                      className={`sort-btn ${pgaSortField === 'mawbNumber' ? pgaSortDirection : ''}`}
+                      onClick={() => handlePgaSort('mawbNumber')}
+                      title="Sort"
+                    >
+                      {pgaSortField === 'mawbNumber' && pgaSortDirection === 'asc' ? '↑' : 
+                       pgaSortField === 'mawbNumber' && pgaSortDirection === 'desc' ? '↓' : '↕'}
+                    </button>
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  className="column-search"
+                  placeholder="Search MAWB..."
+                  value={pgaMawbSearch}
+                  onChange={(e) => setPgaMawbSearch(e.target.value)}
+                />
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedPGAData.length > 0 ? (
+              paginatedPGAData.map((entry, index) => (
+                <tr key={index}>
+                  <td>{pgaStartIndex + index + 1}</td>
+                  <td>{entry.port}</td>
+                  <td>{entry.mawbNumber}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {paginatedPGAData.map((entry, index) => (
-                  <tr key={index}>
-                    <td>{pgaStartIndex + index + 1}</td>
-                    <td>{entry.port}</td>
-                    <td>{entry.mawbNumber}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={3} className="no-data-cell">
+                  {pgaPortSearch || pgaMawbSearch ? 'No matching records found' : 'No PGA Entry Status "N" records found'}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
 
-            {/* PGA Pagination Controls */}
-            <div className="pagination-controls">
-              <div className="page-size-control">
-                <label>Page Size:</label>
-                <select
-                  value={pgaPageSize}
-                  onChange={(e) => {
-                    setPgaPageSize(Number(e.target.value));
-                    setPgaCurrentPage(1);
-                  }}
-                  className="page-size-select"
-                >
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value={30}>30</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-                <span className="showing-text">
-                  Showing {pgaStartIndex + 1} to {Math.min(pgaEndIndex, filteredPGAEntries.length)} of {filteredPGAEntries.length}
-                </span>
-              </div>
-
-              <div className="page-navigation">
-                <button
-                  onClick={() => setPgaCurrentPage(1)}
-                  disabled={pgaCurrentPage === 1}
-                  className="page-btn"
-                >
-                  ⏮
-                </button>
-                <button
-                  onClick={() => setPgaCurrentPage(pgaCurrentPage - 1)}
-                  disabled={pgaCurrentPage === 1}
-                  className="page-btn"
-                >
-                  ◀
-                </button>
-                <span className="page-info">
-                  Page {pgaCurrentPage} of {pgaTotalPages || 1}
-                </span>
-                <button
-                  onClick={() => setPgaCurrentPage(pgaCurrentPage + 1)}
-                  disabled={pgaCurrentPage === pgaTotalPages}
-                  className="page-btn"
-                >
-                  ▶
-                </button>
-                <button
-                  onClick={() => setPgaCurrentPage(pgaTotalPages)}
-                  disabled={pgaCurrentPage === pgaTotalPages}
-                  className="page-btn"
-                >
-                  ⏭
-                </button>
-              </div>
+        {/* PGA Pagination Controls */}
+        {filteredPGAEntries.length > 0 && (
+          <div className="pagination-controls">
+            <div className="page-size-control">
+              <label>Page Size:</label>
+              <select
+                value={pgaPageSize}
+                onChange={(e) => {
+                  setPgaPageSize(Number(e.target.value));
+                  setPgaCurrentPage(1);
+                }}
+                className="page-size-select"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={25}>25</option>
+                <option value={30}>30</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={200}>200</option>
+              </select>
+              <span className="showing-text">
+                Showing {pgaStartIndex + 1} to {Math.min(pgaEndIndex, filteredPGAEntries.length)} of {filteredPGAEntries.length}
+              </span>
             </div>
-          </>
-        ) : (
-          <div className="no-data-message">No PGA Entry Status "N" records found</div>
+
+            <div className="page-navigation">
+              <button
+                onClick={() => setPgaCurrentPage(1)}
+                disabled={pgaCurrentPage === 1}
+                className="page-btn"
+              >
+                ⏮
+              </button>
+              <button
+                onClick={() => setPgaCurrentPage(pgaCurrentPage - 1)}
+                disabled={pgaCurrentPage === 1}
+                className="page-btn"
+              >
+                ◀
+              </button>
+              <span className="page-info">
+                Page {pgaCurrentPage} of {pgaTotalPages || 1}
+              </span>
+              <button
+                onClick={() => setPgaCurrentPage(pgaCurrentPage + 1)}
+                disabled={pgaCurrentPage === pgaTotalPages}
+                className="page-btn"
+              >
+                ▶
+              </button>
+              <button
+                onClick={() => setPgaCurrentPage(pgaTotalPages)}
+                disabled={pgaCurrentPage === pgaTotalPages}
+                className="page-btn"
+              >
+                ⏭
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
       {/* T01 Missing Milestone Table */}
       <div className="pga-table-section milestone-section">
-        <h3 className="table-title milestone-title">T01 shipment with Missing Milestones ({filteredMilestones.length} total)</h3>
+        <div className="table-header-row">
+          <h3 className="table-title milestone-title">
+            T01 shipment with Missing Milestones ({filteredMilestones.length} total)
+            <span className="info-icon-wrapper">
+              <span className="info-icon">⚠️</span>
+              <span className="tooltip">
+                Missing milestones are detected only for: Release Date, CPSC/PGA Check Date, CPSC/PGA Release Date, Custom Final Release, and Handover Time
+              </span>
+            </span>
+          </h3>
+          <button className="export-btn" onClick={exportMilestoneData} disabled={paginatedMilestoneData.length === 0}>
+            📊 Export to Excel
+          </button>
+        </div>
         <p className="table-subtitle">Records with O column filled but missing data in P, N, M, L, or K columns</p>
-        {filteredMilestones.length > 0 ? (
-          <>
-            <table className="pga-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Port</th>
-                  <th>MAWB Number</th>
-                  <th>Missing Milestone</th>
+        
+        <table className="pga-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>
+                <div className="header-with-controls">
+                  <span>Port</span>
+                  <div className="header-controls">
+                    <button 
+                      className={`sort-btn ${milestoneSortField === 'port' ? milestoneSortDirection : ''}`}
+                      onClick={() => handleMilestoneSort('port')}
+                      title="Sort"
+                    >
+                      {milestoneSortField === 'port' && milestoneSortDirection === 'asc' ? '↑' : 
+                       milestoneSortField === 'port' && milestoneSortDirection === 'desc' ? '↓' : '↕'}
+                    </button>
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  className="column-search"
+                  placeholder="Search port..."
+                  value={milestonePortSearch}
+                  onChange={(e) => setMilestonePortSearch(e.target.value)}
+                />
+              </th>
+              <th>
+                <div className="header-with-controls">
+                  <span>MAWB Number</span>
+                  <div className="header-controls">
+                    <button 
+                      className={`sort-btn ${milestoneSortField === 'mawbNumber' ? milestoneSortDirection : ''}`}
+                      onClick={() => handleMilestoneSort('mawbNumber')}
+                      title="Sort"
+                    >
+                      {milestoneSortField === 'mawbNumber' && milestoneSortDirection === 'asc' ? '↑' : 
+                       milestoneSortField === 'mawbNumber' && milestoneSortDirection === 'desc' ? '↓' : '↕'}
+                    </button>
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  className="column-search"
+                  placeholder="Search MAWB..."
+                  value={milestoneMawbSearch}
+                  onChange={(e) => setMilestoneMawbSearch(e.target.value)}
+                />
+              </th>
+              <th>
+                <div className="header-with-controls">
+                  <span>Missing Milestone</span>
+                  <div className="header-controls">
+                    <button 
+                      className={`sort-btn ${milestoneSortField === 'missingMilestones' ? milestoneSortDirection : ''}`}
+                      onClick={() => handleMilestoneSort('missingMilestones')}
+                      title="Sort"
+                    >
+                      {milestoneSortField === 'missingMilestones' && milestoneSortDirection === 'asc' ? '↑' : 
+                       milestoneSortField === 'missingMilestones' && milestoneSortDirection === 'desc' ? '↓' : '↕'}
+                    </button>
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  className="column-search"
+                  placeholder="Search milestone..."
+                  value={milestoneMissingSearch}
+                  onChange={(e) => setMilestoneMissingSearch(e.target.value)}
+                />
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedMilestoneData.length > 0 ? (
+              paginatedMilestoneData.map((entry, index) => (
+                <tr key={index}>
+                  <td>{milestoneStartIndex + index + 1}</td>
+                  <td>{entry.port}</td>
+                  <td>{entry.mawbNumber}</td>
+                  <td className="missing-milestones-column">{entry.missingMilestones}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {paginatedMilestoneData.map((entry, index) => (
-                  <tr key={index}>
-                    <td>{milestoneStartIndex + index + 1}</td>
-                    <td>{entry.port}</td>
-                    <td>{entry.mawbNumber}</td>
-                    <td className="missing-milestones-column">{entry.missingMilestones}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={4} className="no-data-cell">
+                  {milestonePortSearch || milestoneMawbSearch || milestoneMissingSearch ? 'No matching records found' : 'No T01 missing milestone records found'}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
 
-            {/* Milestone Pagination Controls */}
-            <div className="pagination-controls">
-              <div className="page-size-control">
-                <label>Page Size:</label>
-                <select
-                  value={milestonePageSize}
-                  onChange={(e) => {
-                    setMilestonePageSize(Number(e.target.value));
-                    setMilestoneCurrentPage(1);
-                  }}
-                  className="page-size-select"
-                >
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value={30}>30</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-                <span className="showing-text">
-                  Showing {milestoneStartIndex + 1} to {Math.min(milestoneEndIndex, filteredMilestones.length)} of {filteredMilestones.length}
-                </span>
-              </div>
-
-              <div className="page-navigation">
-                <button
-                  onClick={() => setMilestoneCurrentPage(1)}
-                  disabled={milestoneCurrentPage === 1}
-                  className="page-btn"
-                >
-                  ⏮
-                </button>
-                <button
-                  onClick={() => setMilestoneCurrentPage(milestoneCurrentPage - 1)}
-                  disabled={milestoneCurrentPage === 1}
-                  className="page-btn"
-                >
-                  ◀
-                </button>
-                <span className="page-info">
-                  Page {milestoneCurrentPage} of {milestoneTotalPages || 1}
-                </span>
-                <button
-                  onClick={() => setMilestoneCurrentPage(milestoneCurrentPage + 1)}
-                  disabled={milestoneCurrentPage === milestoneTotalPages}
-                  className="page-btn"
-                >
-                  ▶
-                </button>
-                <button
-                  onClick={() => setMilestoneCurrentPage(milestoneTotalPages)}
-                  disabled={milestoneCurrentPage === milestoneTotalPages}
-                  className="page-btn"
-                >
-                  ⏭
-                </button>
-              </div>
+        {/* Milestone Pagination Controls */}
+        {filteredMilestones.length > 0 && (
+          <div className="pagination-controls">
+            <div className="page-size-control">
+              <label>Page Size:</label>
+              <select
+                value={milestonePageSize}
+                onChange={(e) => {
+                  setMilestonePageSize(Number(e.target.value));
+                  setMilestoneCurrentPage(1);
+                }}
+                className="page-size-select"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={25}>25</option>
+                <option value={30}>30</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={200}>200</option>
+              </select>
+              <span className="showing-text">
+                Showing {milestoneStartIndex + 1} to {Math.min(milestoneEndIndex, filteredMilestones.length)} of {filteredMilestones.length}
+              </span>
             </div>
-          </>
-        ) : (
-          <div className="no-data-message">No T01 missing milestone records found</div>
+
+            <div className="page-navigation">
+              <button
+                onClick={() => setMilestoneCurrentPage(1)}
+                disabled={milestoneCurrentPage === 1}
+                className="page-btn"
+              >
+                ⏮
+              </button>
+              <button
+                onClick={() => setMilestoneCurrentPage(milestoneCurrentPage - 1)}
+                disabled={milestoneCurrentPage === 1}
+                className="page-btn"
+              >
+                ◀
+              </button>
+              <span className="page-info">
+                Page {milestoneCurrentPage} of {milestoneTotalPages || 1}
+              </span>
+              <button
+                onClick={() => setMilestoneCurrentPage(milestoneCurrentPage + 1)}
+                disabled={milestoneCurrentPage === milestoneTotalPages}
+                className="page-btn"
+              >
+                ▶
+              </button>
+              <button
+                onClick={() => setMilestoneCurrentPage(milestoneTotalPages)}
+                disabled={milestoneCurrentPage === milestoneTotalPages}
+                className="page-btn"
+              >
+                ⏭
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
