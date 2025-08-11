@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-dom';
 import * as XLSX from 'xlsx';
+import FileUploadPage from './FileUploadPage';
 import DriverKPI from './DriverKPI';
 import WarehouseKPI from './WarehouseKPI';
 import DeliveryKPI from './DeliveryKPI';
@@ -25,10 +26,73 @@ interface ProcessedData {
   moreThan72: ExcelRow[];
 }
 
+interface UploadedDataSet {
+  fileName: string;
+  data: any;
+  uploadTime: Date;
+  dataType: 'SHEIN' | 'TEMU';
+}
+
 const App: React.FC = () => {
+  const [showDashboard, setShowDashboard] = useState<boolean>(false);
+  const [sheinData, setSheinData] = useState<UploadedDataSet | null>(null);
+  const [temuData, setTemuData] = useState<UploadedDataSet | null>(null);
+  const [currentDataType, setCurrentDataType] = useState<'SHEIN' | 'TEMU'>('SHEIN');
   const [uploadedFile, setUploadedFile] = useState<string>('');
-  const [uploadedData, setUploadedData] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Get current data based on selected type
+  const getCurrentData = () => {
+    if (currentDataType === 'SHEIN') {
+      return sheinData;
+    } else {
+      return temuData;
+    }
+  };
+
+  // Handle file upload from FileUploadPage
+  const handleInitialFileUpload = (data: any, fileName: string, dataType: 'SHEIN' | 'TEMU') => {
+    const uploadedData: UploadedDataSet = {
+      fileName,
+      data,
+      uploadTime: new Date(),
+      dataType
+    };
+
+    if (dataType === 'SHEIN') {
+      setSheinData(uploadedData);
+    } else {
+      setTemuData(uploadedData);
+    }
+  };
+
+  // Navigate to dashboard
+  const handleNavigateToDashboard = () => {
+    // Set current data type based on what's available
+    if (sheinData && !temuData) {
+      setCurrentDataType('SHEIN');
+      setUploadedFile(sheinData.fileName);
+    } else if (temuData && !sheinData) {
+      setCurrentDataType('TEMU');
+      setUploadedFile(temuData.fileName);
+    } else if (sheinData) {
+      // Default to SHEIN if both are available
+      setCurrentDataType('SHEIN');
+      setUploadedFile(sheinData.fileName);
+    }
+    setShowDashboard(true);
+  };
+
+  // Handle switching between SHEIN and TEMU
+  const handleDataTypeSwitch = (type: 'SHEIN' | 'TEMU') => {
+    setCurrentDataType(type);
+    const data = type === 'SHEIN' ? sheinData : temuData;
+    if (data) {
+      setUploadedFile(data.fileName);
+    } else {
+      setUploadedFile('');
+    }
+  };
 
   // Excel日期转换函数
   const excelDateToJSDate = (excelDate: number): Date | null => {
@@ -38,63 +102,7 @@ const App: React.FC = () => {
     return isNaN(date.getTime()) ? null : date;
   };
 
-  // 处理Excel数据
-  const processExcelData = (data: any[]): ProcessedData => {
-    const processed: ProcessedData = {
-      lessThan12: [],
-      between12And24: [],
-      between24And48: [],
-      between48And72: [],
-      moreThan72: []
-    };
-
-    // 从第3行开始（索引2）
-    for (let i = 2; i < data.length; i++) {
-      const row = data[i];
-      
-      // 获取列数据 (注意：XLSX使用0索引，所以B列是索引1，C列是索引2，F列是索引5，I列是索引8)
-      const port = row[1] || ''; // B列 - Port
-      const mawbNumber = row[2] || ''; // C列 - MAWB Number
-      const ataDate = excelDateToJSDate(row[5]); // F列 - ATA Date
-      const arrivedAtWarehouse = excelDateToJSDate(row[8]); // I列 - Arrived at Warehouse
-      
-      // 如果两个日期都存在，计算时间差
-      if (ataDate && arrivedAtWarehouse) {
-        const timeDiffMs = arrivedAtWarehouse.getTime() - ataDate.getTime();
-        const timeDiffHours = timeDiffMs / (1000 * 60 * 60);
-        
-        const rowData: ExcelRow = {
-          port,
-          mawbNumber,
-          ataDate,
-          arrivedAtWarehouse,
-          timeDiff: timeDiffHours,
-          timeCategory: ''
-        };
-
-        // 分类
-        if (timeDiffHours < 12) {
-          rowData.timeCategory = 'lessThan12';
-          processed.lessThan12.push(rowData);
-        } else if (timeDiffHours >= 12 && timeDiffHours < 24) {
-          rowData.timeCategory = 'between12And24';
-          processed.between12And24.push(rowData);
-        } else if (timeDiffHours >= 24 && timeDiffHours < 48) {
-          rowData.timeCategory = 'between24And48';
-          processed.between24And48.push(rowData);
-        } else if (timeDiffHours >= 48 && timeDiffHours < 72) {
-          rowData.timeCategory = 'between48And72';
-          processed.between48And72.push(rowData);
-        } else {
-          rowData.timeCategory = 'moreThan72';
-          processed.moreThan72.push(rowData);
-        }
-      }
-    }
-
-    return processed;
-  };
-
+  // Handle file upload from sidebar (in dashboard)
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -118,23 +126,42 @@ const App: React.FC = () => {
         const worksheet = workbook.Sheets[sheetName];
         
         // 转换为数组格式
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
+        let jsonData = XLSX.utils.sheet_to_json(worksheet, { 
           header: 1,
           raw: true,
           dateNF: 'yyyy-mm-dd hh:mm:ss'
         });
         
+        // If current type is TEMU, insert empty column G
+        if (currentDataType === 'TEMU') {
+          jsonData = jsonData.map((row: any) => {
+            if (Array.isArray(row)) {
+              const newRow = [...row];
+              newRow.splice(6, 0, ''); // Insert empty string at position 6
+              return newRow;
+            }
+            return row;
+          });
+        }
+        
         console.log('Parsed data:', jsonData.slice(0, 5)); // 调试：查看前5行
         
-        // 设置上传的数据，让各个组件自己处理
-        setUploadedData({
+        // Update the data for current type
+        const uploadedData: UploadedDataSet = {
           fileName: file.name,
           data: jsonData,
-          uploadTime: new Date()
-        });
-        setUploadedFile(file.name);
+          uploadTime: new Date(),
+          dataType: currentDataType
+        };
         
-        alert(`File uploaded successfully: ${file.name}`);
+        if (currentDataType === 'SHEIN') {
+          setSheinData(uploadedData);
+        } else {
+          setTemuData(uploadedData);
+        }
+        
+        setUploadedFile(file.name);
+        alert(`${currentDataType} file uploaded successfully: ${file.name}`);
       } catch (error) {
         console.error('Error parsing Excel file:', error);
         alert('Error parsing Excel file. Please check the file format.');
@@ -144,6 +171,17 @@ const App: React.FC = () => {
     reader.readAsBinaryString(file);
   };
 
+  // If not showing dashboard, show upload page
+  if (!showDashboard) {
+    return (
+      <FileUploadPage
+        onFileUpload={handleInitialFileUpload}
+        onNavigateToDashboard={handleNavigateToDashboard}
+      />
+    );
+  }
+
+  // Show dashboard
   return (
     <Router>
       <div style={{ display: 'flex', height: '100vh', background: '#f5f5f5' }}>
@@ -175,6 +213,54 @@ const App: React.FC = () => {
             </div>
           </div>
           
+          {/* Data Type Selector */}
+          <div style={{ padding: '15px', background: '#f0f2f5', borderBottom: '1px solid #dee2e6' }}>
+            <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '14px', color: '#495057' }}>
+              Select Data Source:
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={() => handleDataTypeSwitch('SHEIN')}
+                disabled={!sheinData}
+                style={{
+                  flex: 1,
+                  padding: '8px',
+                  background: currentDataType === 'SHEIN' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : '#fff',
+                  color: currentDataType === 'SHEIN' ? 'white' : '#333',
+                  border: currentDataType === 'SHEIN' ? 'none' : '1px solid #dee2e6',
+                  borderRadius: '5px',
+                  cursor: sheinData ? 'pointer' : 'not-allowed',
+                  opacity: sheinData ? 1 : 0.5,
+                  fontWeight: currentDataType === 'SHEIN' ? 'bold' : 'normal',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                SHEIN {!sheinData && '(No data)'}
+              </button>
+              <button
+                onClick={() => handleDataTypeSwitch('TEMU')}
+                disabled={!temuData}
+                style={{
+                  flex: 1,
+                  padding: '8px',
+                  background: currentDataType === 'TEMU' ? 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' : '#fff',
+                  color: currentDataType === 'TEMU' ? 'white' : '#333',
+                  border: currentDataType === 'TEMU' ? 'none' : '1px solid #dee2e6',
+                  borderRadius: '5px',
+                  cursor: temuData ? 'pointer' : 'not-allowed',
+                  opacity: temuData ? 1 : 0.5,
+                  fontWeight: currentDataType === 'TEMU' ? 'bold' : 'normal',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                TEMU {!temuData && '(No data)'}
+              </button>
+            </div>
+            <div style={{ marginTop: '8px', fontSize: '12px', color: '#6c757d', textAlign: 'center' }}>
+              Current: <strong>{currentDataType}</strong>
+            </div>
+          </div>
+          
           {/* Upload Section */}
           <div style={{ padding: '15px', background: '#f8f9fa' }}>
             <input
@@ -189,14 +275,16 @@ const App: React.FC = () => {
               style={{
                 width: '100%',
                 padding: '10px',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                background: currentDataType === 'TEMU' 
+                  ? 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
+                  : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                 color: 'white',
                 border: 'none',
                 borderRadius: '5px',
                 cursor: 'pointer'
               }}
             >
-              📤 Upload Excel
+              📤 Upload {currentDataType} Excel
             </button>
             {uploadedFile && (
               <div style={{ marginTop: '10px', fontSize: '12px', color: '#28a745' }}>
@@ -269,11 +357,11 @@ const App: React.FC = () => {
         {/* Main Content */}
         <main style={{ flex: 1, padding: '30px', overflow: 'auto' }}>
           <Routes>
-            <Route path="/" element={<DriverKPI uploadedData={uploadedData} />} />
-            <Route path="/driver-kpi" element={<DriverKPI uploadedData={uploadedData} />} />
-            <Route path="/warehouse-kpi" element={<WarehouseKPI uploadedData={uploadedData} />} />
-            <Route path="/delivery-kpi" element={<DeliveryKPI uploadedData={uploadedData} />} />
-            <Route path="/missing-data" element={<MissingData uploadedData={uploadedData} />} />
+            <Route path="/" element={<DriverKPI uploadedData={getCurrentData()} />} />
+            <Route path="/driver-kpi" element={<DriverKPI uploadedData={getCurrentData()} />} />
+            <Route path="/warehouse-kpi" element={<WarehouseKPI uploadedData={getCurrentData()} />} />
+            <Route path="/delivery-kpi" element={<DeliveryKPI uploadedData={getCurrentData()} />} />
+            <Route path="/missing-data" element={<MissingData uploadedData={getCurrentData()} />} />
           </Routes>
         </main>
       </div>
