@@ -109,7 +109,7 @@ const FileUploadPage: React.FC<FileUploadPageProps> = ({ onFileUpload, onNavigat
               )}
               <p className="upload-hint">
                 Upload SHEIN shipment data in Excel format (.xlsx)<br/>
-                Data will be processed as-is without modifications
+                
               </p>
             </div>
           </div>
@@ -140,7 +140,7 @@ const FileUploadPage: React.FC<FileUploadPageProps> = ({ onFileUpload, onNavigat
               )}
               <p className="upload-hint">
                 Upload TEMU shipment data in Excel format (.xlsx)<br/>
-                An empty column G will be automatically added after column F
+
               </p>
             </div>
           </div>
