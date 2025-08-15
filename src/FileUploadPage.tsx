@@ -64,7 +64,7 @@ const FileUploadPage: React.FC<FileUploadPageProps> = ({ onFileUpload, onNavigat
           setTemuFile(file.name);
         }
         
-        alert(`${type} file uploaded successfully: ${file.name}`);
+        // Removed success alert - file upload completes silently
       } catch (error) {
         console.error('Error parsing Excel file:', error);
         alert('Error parsing Excel file. Please check the file format.');
@@ -140,7 +140,7 @@ const FileUploadPage: React.FC<FileUploadPageProps> = ({ onFileUpload, onNavigat
               )}
               <p className="upload-hint">
                 Upload TEMU shipment data in Excel format (.xlsx)<br/>
-
+                
               </p>
             </div>
           </div>

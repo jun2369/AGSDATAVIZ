@@ -6,6 +6,7 @@ import DriverKPI from './DriverKPI';
 import WarehouseKPI from './WarehouseKPI';
 import DeliveryKPI from './DeliveryKPI';
 import MissingData from './MissingData';
+import AverageKPI from './AverageKPI';
 import './App.css';
 
 // 定义数据类型
@@ -351,6 +352,21 @@ const App: React.FC = () => {
             >
               ⚠️ Missing Data
             </NavLink>
+
+            <NavLink 
+              to="/average-kpi"
+              style={({ isActive }) => ({
+                display: 'block',
+                padding: '12px',
+                marginBottom: '5px',
+                textDecoration: 'none',
+                borderRadius: '5px',
+                color: isActive ? 'white' : '#333',
+                background: isActive ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent'
+              })}
+            >
+              📊 Average KPI
+            </NavLink>
           </nav>
         </aside>
         
@@ -362,6 +378,8 @@ const App: React.FC = () => {
             <Route path="/warehouse-kpi" element={<WarehouseKPI uploadedData={getCurrentData()} />} />
             <Route path="/delivery-kpi" element={<DeliveryKPI uploadedData={getCurrentData()} />} />
             <Route path="/missing-data" element={<MissingData uploadedData={getCurrentData()} />} />
+            <Route path="/average-kpi" element={<AverageKPI 
+            uploadedData={getCurrentData()} />} />
           </Routes>
         </main>
       </div>
