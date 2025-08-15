@@ -109,7 +109,7 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
     
     // Check if this is a TEMU file and insert empty G column if needed
     if (isTEMU) {
-      data = data.map((row) => {
+      data = data.map((row: any) => {
         if (!row || !Array.isArray(row)) return row;
         const newRow = [...row];
         newRow.splice(6, 0, '');
@@ -197,7 +197,7 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
     
     // Check if this is a TEMU file and insert empty G column if needed
     if (isTEMU) {
-      data = data.map((row) => {
+      data = data.map((row: any) => {
         if (!row || !Array.isArray(row)) return row;
         const newRow = [...row];
         newRow.splice(6, 0, '');
@@ -580,7 +580,7 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
             ATA to Released
             <span className="record-count">({calculateKPIs.ataToReleased.length} records)</span>
           </h2>
-          <span className="kpi-formula"></span>
+          <span className="kpi-formula">(Column K - Column F)</span>
           {calculateKPIs.ataToReleased.length > 0 && (
             <button 
               onClick={() => exportToExcel(calculateKPIs.ataToReleased, 'ATA to Released')} 
@@ -668,7 +668,7 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
             ATA to ConsigntoFM
             <span className="record-count">({calculateKPIs.ataToFinalReleased.length} records)</span>
           </h2>
-          <span className="kpi-formula"></span>
+          <span className="kpi-formula">(Column O - Column F)</span>
           {calculateKPIs.ataToFinalReleased.length > 0 && (
             <button 
               onClick={() => exportToExcel(calculateKPIs.ataToFinalReleased, 'ATA to ConsigntoFM')} 
@@ -756,7 +756,7 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
             ATA to Handover
             <span className="record-count">({calculateKPIs.ataToHandover.length} records)</span>
           </h2>
-          <span className="kpi-formula"></span>
+          <span className="kpi-formula">(Column P - Column F)</span>
           {calculateKPIs.ataToHandover.length > 0 && (
             <button 
               onClick={() => exportToExcel(calculateKPIs.ataToHandover, 'ATA to Handover')} 
