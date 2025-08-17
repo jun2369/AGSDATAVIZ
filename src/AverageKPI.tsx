@@ -23,13 +23,15 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
   const [fromDate, setFromDate] = useState<string>('2025-07-01');
   const [toDate, setToDate] = useState<string>('');
   const [selectedChartKPI, setSelectedChartKPI] = useState<string>('ATA to Released');
+  const [chartViewType, setChartViewType] = useState<'overall' | 'standardization'>('overall');
+  const [standardizationThreshold, setStandardizationThreshold] = useState<48 | 72>(48);
+  const [standardizationSortOrder, setStandardizationSortOrder] = useState<'desc' | 'asc'>('desc');
   
-  // Sorting states for each table
   const [sortOrder1, setSortOrder1] = useState<'asc' | 'desc' | null>(null);
   const [sortOrder2, setSortOrder2] = useState<'asc' | 'desc' | null>(null);
   const [sortOrder3, setSortOrder3] = useState<'asc' | 'desc' | null>(null);
+  const [sortOrder4, setSortOrder4] = useState<'asc' | 'desc' | null>(null);
   
-  // Helper function to parse Excel date
   const parseExcelDate = (value: any): Date | null => {
     if (!value) return null;
     
@@ -38,8 +40,6 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
     }
     
     if (typeof value === 'number') {
-      // Excel dates start from 1900-01-01
-      // Direct conversion without timezone adjustment
       const date = new Date((value - 25569) * 86400 * 1000);
       return isNaN(date.getTime()) ? null : date;
     }
@@ -52,12 +52,10 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
     return null;
   };
 
-  // Format hours to readable format - UPDATED to show only hours
   const formatHours = (hours: number): string => {
     return `${hours.toFixed(2)}h`;
   };
 
-  // Format date for display - NO UTC CONVERSION, display as-is
   const formatDate = (date: Date): string => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -67,18 +65,15 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
     return `${year}-${month}-${day} ${hours}:${minutes}`;
   };
 
-  // Calculate average KPI value
   const calculateAverage = (kpiList: KPIRow[]): number => {
     if (kpiList.length === 0) return 0;
     const sum = kpiList.reduce((acc, row) => acc + row.kpiValue, 0);
     return sum / kpiList.length;
   };
 
-  // Calculate average KPI by POE
   const calculateAverageByPOE = (kpiList: KPIRow[]): { poe: string; average: number; count: number }[] => {
     if (kpiList.length === 0) return [];
     
-    // Group by POE
     const poeGroups = kpiList.reduce((acc, row) => {
       if (!acc[row.port]) {
         acc[row.port] = { sum: 0, count: 0 };
@@ -88,17 +83,15 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
       return acc;
     }, {} as Record<string, { sum: number; count: number }>);
     
-    // Calculate averages and convert to array, sort by average (high to low)
     return Object.entries(poeGroups)
       .map(([poe, data]) => ({
         poe,
         average: data.sum / data.count,
         count: data.count
       }))
-      .sort((a, b) => b.average - a.average); // Sort by average value, high to low
+      .sort((a, b) => b.average - a.average);
   };
 
-  // Process data to extract available POEs and Categories
   useEffect(() => {
     if (!uploadedData || !uploadedData.data || !Array.isArray(uploadedData.data)) {
       return;
@@ -107,7 +100,6 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
     let data = uploadedData.data;
     const isTEMU = uploadedData.fileName && uploadedData.fileName.toLowerCase().includes('temu');
     
-    // Check if this is a TEMU file and insert empty G column if needed
     if (isTEMU) {
       data = data.map((row: any) => {
         if (!row || !Array.isArray(row)) return row;
@@ -121,24 +113,20 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
     const categoriesSet = new Set<string>(['ALL']);
     let maxDate: Date | null = null;
 
-    // Start from row 2 (index 1 is headers, index 0 might be title)
     for (let i = 2; i < data.length; i++) {
       const row = data[i];
       if (!row || !Array.isArray(row)) continue;
 
-      // Get POE from column B (index 1)
       const poe = String(row[1] || '').trim().toUpperCase();
       if (poe) {
         poesSet.add(poe);
       }
 
-      // Get category from column A (index 0)
       const category = String(row[0] || '').trim().toUpperCase();
       if (category === 'T01' || category === 'T86') {
         categoriesSet.add(category);
       }
       
-      // Get ATA date to find max date for default toDate
       const ataDate = parseExcelDate(row[5]);
       if (ataDate && ataDate >= new Date('2025-07-01')) {
         if (!maxDate || ataDate > maxDate) {
@@ -147,9 +135,7 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
       }
     }
 
-    // Set available options
     const poesList = Array.from(poesSet).sort();
-    // Ensure specific POEs are in order if they exist
     const orderedPOEs = ['ALL'];
     const specificPOEs = ['ORD', 'LAX', 'JFK', 'DFW', 'MIA', 'SFO'];
     specificPOEs.forEach(poe => {
@@ -157,7 +143,6 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
         orderedPOEs.push(poe);
       }
     });
-    // Add any other POEs not in the specific list
     poesList.forEach(poe => {
       if (!orderedPOEs.includes(poe)) {
         orderedPOEs.push(poe);
@@ -167,7 +152,6 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
     setAvailablePOEs(orderedPOEs);
     setAvailableCategories(Array.from(categoriesSet).sort());
     
-    // Set default toDate to max date found or today
     if (maxDate && !toDate) {
       const year = maxDate.getFullYear();
       const month = String(maxDate.getMonth() + 1).padStart(2, '0');
@@ -182,20 +166,19 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
     }
   }, [uploadedData]);
 
-  // Calculate KPIs based on filters
   const calculateKPIs = useMemo(() => {
     if (!uploadedData || !uploadedData.data || !Array.isArray(uploadedData.data)) {
       return {
         ataToReleased: [],
-        ataToFinalReleased: [],
-        ataToHandover: []
+        ataToConsigntoFinal: [],
+        ataToHandover: [],
+        ataToFinalReleased: []
       };
     }
 
     let data = uploadedData.data;
     const isTEMU = uploadedData.fileName && uploadedData.fileName.toLowerCase().includes('temu');
     
-    // Check if this is a TEMU file and insert empty G column if needed
     if (isTEMU) {
       data = data.map((row: any) => {
         if (!row || !Array.isArray(row)) return row;
@@ -206,27 +189,23 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
     }
 
     const ataToReleasedList: KPIRow[] = [];
-    const ataToFinalReleasedList: KPIRow[] = [];
+    const ataToConsigntoFinalList: KPIRow[] = [];
     const ataToHandoverList: KPIRow[] = [];
+    const ataToFinalReleasedList: KPIRow[] = [];
     
-    // Parse date range filters - set time properly for comparison
     const fromDateFilter = fromDate ? new Date(fromDate + 'T00:00:00') : new Date('2025-07-01T00:00:00');
     const toDateFilter = toDate ? new Date(toDate + 'T23:59:59') : new Date('2099-12-31T23:59:59');
 
-    // Process each row
     for (let i = 2; i < data.length; i++) {
       const row = data[i];
       if (!row || !Array.isArray(row)) continue;
 
-      // Get dates for KPI calculations
-      const ataDate = parseExcelDate(row[5]); // F column - ATA Date
+      const ataDate = parseExcelDate(row[5]);
       
-      // Skip if ATA Date is missing
       if (!ataDate) {
         continue;
       }
 
-      // Compare dates properly - compare only the date part, ignoring time
       const ataYear = ataDate.getFullYear();
       const ataMonth = ataDate.getMonth();
       const ataDay = ataDate.getDate();
@@ -239,43 +218,33 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
       const toMonth = toDateFilter.getMonth();
       const toDay = toDateFilter.getDate();
       
-      // Create date-only values for comparison
       const ataDateOnly = new Date(ataYear, ataMonth, ataDay);
       const fromDateOnly = new Date(fromYear, fromMonth, fromDay);
       const toDateOnly = new Date(toYear, toMonth, toDay);
       
-      // Check if date is within range (inclusive)
       if (ataDateOnly < fromDateOnly || ataDateOnly > toDateOnly) {
         continue;
       }
 
-      // Get category from column A (index 0)
       const category = String(row[0] || '').trim().toUpperCase();
       
-      // Apply category filter
       if (selectedCategory !== 'ALL' && category !== selectedCategory) {
         continue;
       }
 
-      // Get port from column B (index 1)
       const port = String(row[1] || '').trim().toUpperCase();
       
-      // Apply POE filter  
       if (selectedPOE !== 'ALL' && port !== selectedPOE) continue;
       
-      // Skip if port is empty
       if (!port) continue;
 
-      // Get MAWB number from column C (index 2)
       const mawbNumber = String(row[2] || '').trim();
       
-      // For TEMU files, columns shift by 1 after G column insertion
-      // Original K becomes L (index 11), O becomes P (index 15), P becomes Q (index 16)
-      const releaseDate = parseExcelDate(row[isTEMU ? 11 : 10]); // K column (or L for TEMU) - Release Date
-      const finalReleaseDate = parseExcelDate(row[isTEMU ? 15 : 14]); // O column (or P for TEMU) - Final Release Date
-      const handoverTime = parseExcelDate(row[isTEMU ? 16 : 15]); // P column (or Q for TEMU) - Handover Time
+      const releaseDate = parseExcelDate(row[isTEMU ? 11 : 10]);
+      const ConsigntoFinalate = parseExcelDate(row[isTEMU ? 15 : 14]);
+      const handoverTime = parseExcelDate(row[isTEMU ? 16 : 15]);
+      const finalReleasedDate = parseExcelDate(row[isTEMU ? 14 : 13]);
 
-      // Calculate KPI 1: ATA to Released (K - F) or (L - F for TEMU)
       if (ataDate && releaseDate) {
         const diffHours = (releaseDate.getTime() - ataDate.getTime()) / (1000 * 60 * 60);
         ataToReleasedList.push({
@@ -288,20 +257,18 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
         });
       }
 
-      // Calculate KPI 2: ATA to Final Released (O - F) or (P - F for TEMU)
-      if (ataDate && finalReleaseDate) {
-        const diffHours = (finalReleaseDate.getTime() - ataDate.getTime()) / (1000 * 60 * 60);
-        ataToFinalReleasedList.push({
+      if (ataDate && ConsigntoFinalate) {
+        const diffHours = (ConsigntoFinalate.getTime() - ataDate.getTime()) / (1000 * 60 * 60);
+        ataToConsigntoFinalList.push({
           port,
           mawbNumber,
           ataDate,
-          targetDate: finalReleaseDate,
+          targetDate: ConsigntoFinalate,
           kpiValue: diffHours,
           kpiFormatted: formatHours(diffHours)
         });
       }
 
-      // Calculate KPI 3: ATA to Handover (P - F) or (Q - F for TEMU)
       if (ataDate && handoverTime) {
         const diffHours = (handoverTime.getTime() - ataDate.getTime()) / (1000 * 60 * 60);
         ataToHandoverList.push({
@@ -313,16 +280,28 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
           kpiFormatted: formatHours(diffHours)
         });
       }
+
+      if (ataDate && finalReleasedDate) {
+        const diffHours = (finalReleasedDate.getTime() - ataDate.getTime()) / (1000 * 60 * 60);
+        ataToFinalReleasedList.push({
+          port,
+          mawbNumber,
+          ataDate,
+          targetDate: finalReleasedDate,
+          kpiValue: diffHours,
+          kpiFormatted: formatHours(diffHours)
+        });
+      }
     }
 
     return {
       ataToReleased: ataToReleasedList,
-      ataToFinalReleased: ataToFinalReleasedList,
-      ataToHandover: ataToHandoverList
+      ataToConsigntoFinal: ataToConsigntoFinalList,
+      ataToHandover: ataToHandoverList,
+      ataToFinalReleased: ataToFinalReleasedList
     };
   }, [uploadedData, selectedPOE, selectedCategory, fromDate, toDate]);
 
-  // Prepare chart data based on selected KPI type
   const getChartData = useMemo(() => {
     let dataToUse: KPIRow[] = [];
     
@@ -331,26 +310,58 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
         dataToUse = calculateKPIs.ataToReleased;
         break;
       case 'ATA to ConsigntoFM':
-        dataToUse = calculateKPIs.ataToFinalReleased;
+        dataToUse = calculateKPIs.ataToConsigntoFinal;
         break;
       case 'ATA to Handover':
         dataToUse = calculateKPIs.ataToHandover;
+        break;
+      case 'ATA to FinalReleased':
+        dataToUse = calculateKPIs.ataToFinalReleased;
         break;
       default:
         dataToUse = calculateKPIs.ataToReleased;
     }
     
-    const poeData = calculateAverageByPOE(dataToUse);
-    
-    // Format data for chart
-    return poeData.map(item => ({
-      name: item.poe,
-      value: parseFloat(item.average.toFixed(2)),
-      count: item.count
-    }));
-  }, [calculateKPIs, selectedChartKPI]);
+    if (chartViewType === 'overall') {
+      const poeData = calculateAverageByPOE(dataToUse);
+      
+      return poeData.map(item => ({
+        name: item.poe,
+        value: parseFloat(item.average.toFixed(2)),
+        count: item.count
+      }));
+    } else {
+      // Standardization view - count MAWB with KPI < threshold by POE
+      const poeGroups = dataToUse.reduce((acc, row) => {
+        if (!acc[row.port]) {
+          acc[row.port] = { underThreshold: 0, total: 0 };
+        }
+        acc[row.port].total += 1;
+        if (row.kpiValue < standardizationThreshold) {
+          acc[row.port].underThreshold += 1;
+        }
+        return acc;
+      }, {} as Record<string, { underThreshold: number; total: number }>);
+      
+      const unsortedData = Object.entries(poeGroups)
+        .map(([poe, data]) => ({
+          name: poe,
+          value: data.underThreshold,
+          count: data.total,
+          percentage: data.total > 0 ? (data.underThreshold / data.total) * 100 : 0
+        }));
+      
+      // Sort by percentage based on sort order
+      return unsortedData.sort((a, b) => {
+        if (standardizationSortOrder === 'desc') {
+          return b.percentage - a.percentage;
+        } else {
+          return a.percentage - b.percentage;
+        }
+      });
+    }
+  }, [calculateKPIs, selectedChartKPI, chartViewType, standardizationThreshold, standardizationSortOrder]);
 
-  // Sort data function
   const sortData = (data: KPIRow[], order: 'asc' | 'desc' | null): KPIRow[] => {
     if (!order) return data;
     return [...data].sort((a, b) => {
@@ -362,7 +373,6 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
     });
   };
 
-  // Export to Excel function
   const exportToExcel = (data: KPIRow[], kpiType: string) => {
     const exportData = data.map(row => ({
       'POE': row.port,
@@ -379,7 +389,6 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
     XLSX.writeFile(wb, filename);
   };
 
-  // Export KPI Summary to Excel function
   const exportKPISummary = (data: KPIRow[], kpiType: string) => {
     const poeAverages = calculateAverageByPOE(data);
     const overallAverage = calculateAverage(data);
@@ -475,19 +484,139 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
         <div className="section-header">
           <h2 className="section-title">
             KPI Visualization
-            <span className="record-count">(Average hours by POE)</span>
+            <span className="record-count">
+              {chartViewType === 'overall' ? '(Average hours by POE)' : `(MAWB count < ${standardizationThreshold}h by POE)`}
+            </span>
           </h2>
-          <div className="chart-filter-group">
-            <label className="filter-label">KPI Type:</label>
-            <select
-              value={selectedChartKPI}
-              onChange={(e) => setSelectedChartKPI(e.target.value)}
-              className="filter-select"
-            >
-              <option value="ATA to Released">ATA to Released</option>
-              <option value="ATA to ConsigntoFM">ATA to ConsigntoFM</option>
-              <option value="ATA to Handover">ATA to Handover</option>
-            </select>
+          <div className="chart-filter-group" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+            {/* View Type Slicer */}
+            <div style={{ display: 'flex', gap: '5px' }}>
+              <button
+                onClick={() => setChartViewType('overall')}
+                style={{
+                  padding: '6px 12px',
+                  border: '2px solid #667eea',
+                  borderRadius: '6px',
+                  background: chartViewType === 'overall' ? '#667eea' : 'white',
+                  color: chartViewType === 'overall' ? 'white' : '#667eea',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: '500',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                Overall Average
+              </button>
+              <button
+                onClick={() => setChartViewType('standardization')}
+                style={{
+                  padding: '6px 12px',
+                  border: '2px solid #667eea',
+                  borderRadius: '6px',
+                  background: chartViewType === 'standardization' ? '#667eea' : 'white',
+                  color: chartViewType === 'standardization' ? 'white' : '#667eea',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: '500',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                Standardization
+              </button>
+            </div>
+            
+            {/* Threshold Selector for Standardization */}
+            {chartViewType === 'standardization' && (
+              <>
+                <div style={{ display: 'flex', gap: '5px' }}>
+                  <button
+                    onClick={() => setStandardizationThreshold(48)}
+                    style={{
+                      padding: '6px 12px',
+                      border: '2px solid #28a745',
+                      borderRadius: '6px',
+                      background: standardizationThreshold === 48 ? '#28a745' : 'white',
+                      color: standardizationThreshold === 48 ? 'white' : '#28a745',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      fontWeight: '500',
+                      transition: 'all 0.3s ease'
+                    }}
+                  >
+                    48h
+                  </button>
+                  <button
+                    onClick={() => setStandardizationThreshold(72)}
+                    style={{
+                      padding: '6px 12px',
+                      border: '2px solid #28a745',
+                      borderRadius: '6px',
+                      background: standardizationThreshold === 72 ? '#28a745' : 'white',
+                      color: standardizationThreshold === 72 ? 'white' : '#28a745',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      fontWeight: '500',
+                      transition: 'all 0.3s ease'
+                    }}
+                  >
+                    72h
+                  </button>
+                </div>
+                
+                {/* Sort Order Selector for Standardization */}
+                <div style={{ display: 'flex', gap: '5px' }}>
+                  <button
+                    onClick={() => setStandardizationSortOrder('desc')}
+                    style={{
+                      padding: '6px 12px',
+                      border: '2px solid #6c757d',
+                      borderRadius: '6px',
+                      background: standardizationSortOrder === 'desc' ? '#6c757d' : 'white',
+                      color: standardizationSortOrder === 'desc' ? 'white' : '#6c757d',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      fontWeight: '500',
+                      transition: 'all 0.3s ease'
+                    }}
+                    title="Sort descending (highest percentage first)"
+                  >
+                    ↓ High to Low
+                  </button>
+                  <button
+                    onClick={() => setStandardizationSortOrder('asc')}
+                    style={{
+                      padding: '6px 12px',
+                      border: '2px solid #6c757d',
+                      borderRadius: '6px',
+                      background: standardizationSortOrder === 'asc' ? '#6c757d' : 'white',
+                      color: standardizationSortOrder === 'asc' ? 'white' : '#6c757d',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      fontWeight: '500',
+                      transition: 'all 0.3s ease'
+                    }}
+                    title="Sort ascending (lowest percentage first)"
+                  >
+                    ↑ Low to High
+                  </button>
+                </div>
+              </>
+            )}
+            
+            {/* KPI Type Selector */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <label className="filter-label">KPI Type:</label>
+              <select
+                value={selectedChartKPI}
+                onChange={(e) => setSelectedChartKPI(e.target.value)}
+                className="filter-select"
+              >
+                <option value="ATA to Released">ATA to Released</option>
+                <option value="ATA to ConsigntoFM">ATA to ConsigntoFM</option>
+                <option value="ATA to Handover">ATA to Handover</option>
+                <option value="ATA to FinalReleased">ATA to FinalReleased</option>
+              </select>
+            </div>
           </div>
         </div>
         
@@ -496,74 +625,138 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
             <div style={{ width: '100%', height: '400px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
               <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-end', padding: '20px', height: '350px' }}>
                 {getChartData.map((item, index) => {
-                  // Find min and max values to properly scale
-                  const allValues = getChartData.map(d => d.value);
-                  const minValue = Math.min(...allValues);
-                  const maxValue = Math.max(...allValues);
-                  
-                  // Calculate range and add padding for extreme cases
-                  const range = maxValue - minValue;
-                  const padding = range * 0.1; // 10% padding
-                  const adjustedMin = minValue - padding;
-                  const adjustedMax = maxValue + padding;
-                  const adjustedRange = adjustedMax - adjustedMin;
-                  
-                  // Calculate bar height based on value position in the range
-                  // Even negative values get positive height, but scaled properly
-                  const normalizedHeight = ((item.value - adjustedMin) / adjustedRange) * 280;
-                  const barHeight = Math.max(normalizedHeight, 5); // Minimum 5px height for visibility
-                  
-                  return (
-                    <div key={index} style={{ 
-                      display: 'flex', 
-                      flexDirection: 'column', 
-                      alignItems: 'center',
-                      height: '320px',
-                      justifyContent: 'flex-end'
-                    }}>
-                      {/* Bar with value label on top */}
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        {/* Value label - directly on top of bar */}
-                        <div style={{ 
-                          marginBottom: '2px', 
-                          fontSize: '12px', 
-                          fontWeight: 'bold',
-                          color: item.value < 0 ? '#ff4757' : '#333'
-                        }}>
-                          {item.value.toFixed(1)}h
+                  if (chartViewType === 'overall') {
+                    // Original average hours view
+                    const allValues = getChartData.map(d => d.value);
+                    const minValue = Math.min(...allValues);
+                    const maxValue = Math.max(...allValues);
+                    
+                    const range = maxValue - minValue;
+                    const padding = range * 0.1;
+                    const adjustedMin = minValue - padding;
+                    const adjustedMax = maxValue + padding;
+                    const adjustedRange = adjustedMax - adjustedMin;
+                    
+                    const normalizedHeight = ((item.value - adjustedMin) / adjustedRange) * 280;
+                    const barHeight = Math.max(normalizedHeight, 5);
+                    
+                    return (
+                      <div key={index} style={{ 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        alignItems: 'center',
+                        height: '320px',
+                        justifyContent: 'flex-end'
+                      }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <div style={{ 
+                            marginBottom: '2px', 
+                            fontSize: '12px', 
+                            fontWeight: 'bold',
+                            color: item.value < 0 ? '#ff4757' : '#333'
+                          }}>
+                            {item.value.toFixed(1)}h
+                          </div>
+                          
+                          <div 
+                            style={{
+                              width: '60px',
+                              height: `${barHeight}px`,
+                              background: 'linear-gradient(180deg, #667eea 0%, #764ba2 100%)',
+                              borderRadius: '8px 8px 0 0',
+                              transition: 'all 0.3s ease',
+                              cursor: 'pointer'
+                            }}
+                            title={`${item.name}: ${item.value.toFixed(2)}h (${item.count} records)`}
+                          />
                         </div>
                         
-                        {/* Bar */}
-                        <div 
-                          style={{
-                            width: '60px',
-                            height: `${barHeight}px`,
-                            background: 'linear-gradient(180deg, #667eea 0%, #764ba2 100%)',
-                            borderRadius: '8px 8px 0 0',
-                            transition: 'all 0.3s ease',
-                            cursor: 'pointer'
-                          }}
-                          title={`${item.name}: ${item.value.toFixed(2)}h (${item.count} records)`}
-                        />
+                        <div style={{
+                          marginTop: '10px',
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {item.name}
+                        </div>
                       </div>
-                      
-                      {/* POE label */}
-                      <div style={{
-                        marginTop: '10px',
-                        fontSize: '11px',
-                        whiteSpace: 'nowrap'
+                    );
+                  } else {
+                    // Standardization view - count of MAWB < threshold
+                    const percentage = item.count > 0 ? ((item.value / item.count) * 100) : 0;
+                    const allPercentages = getChartData.map(d => 
+                      d.count > 0 ? ((d.value / d.count) * 100) : 0
+                    );
+                    const maxPercentage = Math.max(...allPercentages);
+                    
+                    // Use percentage for bar height instead of count
+                    const normalizedHeight = maxPercentage > 0 ? (percentage / maxPercentage) * 280 : 0;
+                    const barHeight = Math.max(normalizedHeight, 5);
+                    
+                    // Calculate counts above threshold
+                    const aboveThreshold = item.count - item.value;
+                    
+                    return (
+                      <div key={index} style={{ 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        alignItems: 'center',
+                        height: '320px',
+                        justifyContent: 'flex-end'
                       }}>
-                        {item.name}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <div style={{ 
+                            marginBottom: '5px', 
+                            fontSize: '16px', 
+                            fontWeight: 'bold',
+                            color: '#28a745'
+                          }}>
+                            {percentage.toFixed(1)}%
+                          </div>
+                          
+                          <div 
+                            style={{
+                              width: '60px',
+                              height: `${barHeight}px`,
+                              background: 'linear-gradient(180deg, #28a745 0%, #20c997 100%)',
+                              borderRadius: '8px 8px 0 0',
+                              transition: 'all 0.3s ease',
+                              cursor: 'pointer',
+                              position: 'relative'
+                            }}
+                            title={`${item.name} Details:\n━━━━━━━━━━━━━━━\n< ${standardizationThreshold}h: ${item.value} MAWB\n≥ ${standardizationThreshold}h: ${aboveThreshold} MAWB\n━━━━━━━━━━━━━━━\nTotal: ${item.count} MAWB\nPercentage: ${percentage.toFixed(1)}%`}
+                          />
+                        </div>
+                        
+                        <div style={{
+                          marginTop: '10px',
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          whiteSpace: 'nowrap',
+                          color: '#333'
+                        }}>
+                          {item.name}
+                        </div>
                       </div>
-                    </div>
-                  );
+                    );
+                  }
                 })}
               </div>
               <div style={{ width: '100%', borderTop: '2px solid #e0e0e0' }}></div>
             </div>
             <div className="chart-summary">
-              Total POEs: {getChartData.length} | 
-              Total Records: {getChartData.reduce((sum, item) => sum + item.count, 0)}
+              {chartViewType === 'overall' ? (
+                <>
+                  Total POEs: {getChartData.length} | 
+                  Total Records: {getChartData.reduce((sum, item) => sum + item.count, 0)}
+                </>
+              ) : (
+                <>
+                  Total POEs: {getChartData.length} | 
+                  MAWB &lt; {standardizationThreshold}h: {getChartData.reduce((sum, item) => sum + item.value, 0)} / 
+                  Total: {getChartData.reduce((sum, item) => sum + item.count, 0)}
+                </>
+              )}
             </div>
           </div>
         ) : (
@@ -666,19 +859,19 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
         <div className="section-header">
           <h2 className="section-title">
             ATA to ConsigntoFM
-            <span className="record-count">({calculateKPIs.ataToFinalReleased.length} records)</span>
+            <span className="record-count">({calculateKPIs.ataToConsigntoFinal.length} records)</span>
           </h2>
           <span className="kpi-formula"></span>
-          {calculateKPIs.ataToFinalReleased.length > 0 && (
+          {calculateKPIs.ataToConsigntoFinal.length > 0 && (
             <button 
-              onClick={() => exportToExcel(calculateKPIs.ataToFinalReleased, 'ATA to ConsigntoFM')} 
+              onClick={() => exportToExcel(calculateKPIs.ataToConsigntoFinal, 'ATA to ConsigntoFM')} 
               className="export-button"
             >
               📊 Export
             </button>
           )}
         </div>
-        {calculateKPIs.ataToFinalReleased.length > 0 ? (
+        {calculateKPIs.ataToConsigntoFinal.length > 0 ? (
           <>
             <div className="table-wrapper">
               <table className="kpi-table">
@@ -701,7 +894,7 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortData(calculateKPIs.ataToFinalReleased, sortOrder2).map((row, index) => (
+                  {sortData(calculateKPIs.ataToConsigntoFinal, sortOrder2).map((row, index) => (
                     <tr key={index}>
                       <td className="port-cell">{row.port}</td>
                       <td className="mawb-cell">{row.mawbNumber}</td>
@@ -719,9 +912,9 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
                   <tr className="average-row">
                     <td colSpan={4} className="average-label">Average KPI (All)</td>
                     <td className="average-value">
-                      {formatHours(calculateAverage(calculateKPIs.ataToFinalReleased))}
+                      {formatHours(calculateAverage(calculateKPIs.ataToConsigntoFinal))}
                       <button 
-                        onClick={() => exportKPISummary(calculateKPIs.ataToFinalReleased, 'ATA to ConsigntoFM')} 
+                        onClick={() => exportKPISummary(calculateKPIs.ataToConsigntoFinal, 'ATA to ConsigntoFM')} 
                         className="export-summary-button"
                         title="Export KPI Summary"
                       >
@@ -729,7 +922,7 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
                       </button>
                     </td>
                   </tr>
-                  {calculateAverageByPOE(calculateKPIs.ataToFinalReleased).map((poeData) => (
+                  {calculateAverageByPOE(calculateKPIs.ataToConsigntoFinal).map((poeData) => (
                     <tr key={poeData.poe} className="average-row-by-poe">
                       <td colSpan={4} className="average-label-poe">
                         Average KPI ({poeData.poe}) 
@@ -833,6 +1026,94 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
         ) : (
           <div className="no-data-message">
             No data available for ATA to Handover
+          </div>
+        )}
+      </div>
+
+      {/* ATA to FinalReleased Table */}
+      <div className="kpi-table-section">
+        <div className="section-header">
+          <h2 className="section-title">
+            ATA to FinalReleased
+            <span className="record-count">({calculateKPIs.ataToFinalReleased.length} records)</span>
+          </h2>
+          <span className="kpi-formula"></span>
+          {calculateKPIs.ataToFinalReleased.length > 0 && (
+            <button 
+              onClick={() => exportToExcel(calculateKPIs.ataToFinalReleased, 'ATA to FinalReleased')} 
+              className="export-button"
+            >
+              📊 Export
+            </button>
+          )}
+        </div>
+        {calculateKPIs.ataToFinalReleased.length > 0 ? (
+          <>
+            <div className="table-wrapper">
+              <table className="kpi-table">
+                <thead>
+                  <tr>
+                    <th>POE</th>
+                    <th>MAWB Number</th>
+                    <th>ATA Date</th>
+                    <th>FinalReleased Date</th>
+                    <th 
+                      style={{ cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => {
+                        if (sortOrder4 === null) setSortOrder4('asc');
+                        else if (sortOrder4 === 'asc') setSortOrder4('desc');
+                        else setSortOrder4(null);
+                      }}
+                    >
+                      KPI Value {sortOrder4 === 'asc' ? '↑' : sortOrder4 === 'desc' ? '↓' : ''}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortData(calculateKPIs.ataToFinalReleased, sortOrder4).map((row, index) => (
+                    <tr key={index}>
+                      <td className="port-cell">{row.port}</td>
+                      <td className="mawb-cell">{row.mawbNumber}</td>
+                      <td className="date-cell">{formatDate(row.ataDate)}</td>
+                      <td className="date-cell">{formatDate(row.targetDate)}</td>
+                      <td className="kpi-cell">{row.kpiFormatted}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="average-row-container">
+              <table className="average-table">
+                <tbody>
+                  <tr className="average-row">
+                    <td colSpan={4} className="average-label">Average KPI (All)</td>
+                    <td className="average-value">
+                      {formatHours(calculateAverage(calculateKPIs.ataToFinalReleased))}
+                      <button 
+                        onClick={() => exportKPISummary(calculateKPIs.ataToFinalReleased, 'ATA to FinalReleased')} 
+                        className="export-summary-button"
+                        title="Export KPI Summary"
+                      >
+                        📊
+                      </button>
+                    </td>
+                  </tr>
+                  {calculateAverageByPOE(calculateKPIs.ataToFinalReleased).map((poeData) => (
+                    <tr key={poeData.poe} className="average-row-by-poe">
+                      <td colSpan={4} className="average-label-poe">
+                        Average KPI ({poeData.poe}) 
+                        <span className="poe-count">[{poeData.count} records]</span>
+                      </td>
+                      <td className="average-value-poe">{formatHours(poeData.average)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : (
+          <div className="no-data-message">
+            No data available for ATA to FinalReleased
           </div>
         )}
       </div>
