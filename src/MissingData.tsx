@@ -13,6 +13,7 @@ interface MissingMilestoneEntry {
   mawbNumber: string;
   category: string;
   consignedDate: Date;
+  creationTime: Date | null;
   missingMilestones: string;
 }
 
@@ -21,7 +22,7 @@ interface MissingDataProps {
 }
 
 type SortDirection = 'asc' | 'desc' | null;
-type SortField = 'port' | 'mawbNumber' | 'missingMilestones';
+type SortField = 'port' | 'mawbNumber' | 'creationTime' | 'missingMilestones';
 
 const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
   const [pgaEntries, setPgaEntries] = useState<PGAEntry[]>([]);
@@ -47,6 +48,7 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
   // Search states for Milestone table
   const [milestonePortSearch, setMilestonePortSearch] = useState('');
   const [milestoneMawbSearch, setMilestoneMawbSearch] = useState('');
+  const [milestoneCreationSearch, setMilestoneCreationSearch] = useState('');
   const [milestoneMissingSearch, setMilestoneMissingSearch] = useState('');
 
   // Sort states for PGA table
@@ -59,11 +61,11 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
 
   // Column mappings for missing milestones
   const milestoneColumns: { [key: number]: string } = {
+    15: 'Handover Time',
     10: 'Release Date',
     11: 'CPSC/PGA Check Date',
     12: 'CPSC/PGA Release Date',
-    13: 'Custom Final Release',
-    15: 'Handover Time'
+    13: 'Custom Final Release'
   };
 
   // Helper function to parse Excel date
@@ -140,17 +142,15 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
           validPGACount++;
         }
 
-        // 2. T01 Missing Milestone Check
-        const consignedDateValue = row[14];
-        const consignedDate = parseExcelDate(consignedDateValue);
-        
-        if (consignedDate && category === 'T01') {
+        // 2. T01 Missing Milestone Check - Check ALL T01 records, not just those with Consigned Date
+        if (category === 'T01') {
+          // Check these specific columns for missing data
           const columnsToCheck: { [key: number]: any } = {
-            15: row[15],
-            13: row[13],
-            12: row[12],
-            11: row[11],
-            10: row[10]
+            15: row[15], // P column - Handover Time
+            10: row[10], // K column - Release Date
+            11: row[11], // L column - CPSC/PGA Check Date
+            12: row[12], // M column - CPSC/PGA Release Date
+            13: row[13]  // N column - Custom Final Release
           };
           
           const missingColumns: string[] = [];
@@ -161,12 +161,22 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
             }
           });
           
+          // Record if ANY milestone is missing (1, 2, 3, 4, or all 5)
           if (missingColumns.length > 0) {
+            // Get consigned date if it exists (for reference, but not required)
+            const consignedDateValue = row[14]; // O column - Consigned Date
+            const consignedDate = parseExcelDate(consignedDateValue);
+            
+            // Get creation time from column D (index 3)
+            const creationTimeValue = row[3]; // D column - Creation Time
+            const creationTime = parseExcelDate(creationTimeValue);
+            
             processedMilestones.push({
               category,
               port,
               mawbNumber,
-              consignedDate,
+              consignedDate: consignedDate || new Date(), // Use current date as fallback if no consigned date
+              creationTime: creationTime,
               missingMilestones: missingColumns.join(', ')
             });
             validMilestoneCount++;
@@ -253,8 +263,8 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
     // Apply sorting
     if (pgaSortField && pgaSortDirection) {
       filtered.sort((a, b) => {
-        const aVal = a[pgaSortField];
-        const bVal = b[pgaSortField];
+        const aVal = a[pgaSortField] || '';
+        const bVal = b[pgaSortField] || '';
         
         if (pgaSortDirection === 'asc') {
           return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
@@ -288,6 +298,15 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
       );
     }
 
+    if (milestoneCreationSearch) {
+      filtered = filtered.filter(entry => {
+        if (!entry.creationTime) return false;
+        const dateStr = entry.creationTime.toLocaleDateString();
+        return dateStr.includes(milestoneCreationSearch);
+      });
+    }
+
+    // Simple Missing Milestone search
     if (milestoneMissingSearch) {
       filtered = filtered.filter(entry => 
         entry.missingMilestones.toLowerCase().includes(milestoneMissingSearch.toLowerCase())
@@ -297,8 +316,12 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
     // Apply sorting
     if (milestoneSortField && milestoneSortDirection) {
       filtered.sort((a, b) => {
-        const aVal = a[milestoneSortField];
-        const bVal = b[milestoneSortField];
+        let aVal: any = a[milestoneSortField];
+        let bVal: any = b[milestoneSortField];
+        
+        // Handle null values for dates
+        if (aVal === null || aVal === undefined) aVal = '';
+        if (bVal === null || bVal === undefined) bVal = '';
         
         if (milestoneSortDirection === 'asc') {
           return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
@@ -309,9 +332,9 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
     }
 
     return filtered;
-  }, [missingMilestones, selectedPort, milestonePortSearch, milestoneMawbSearch, milestoneMissingSearch, milestoneSortField, milestoneSortDirection]);
+  }, [missingMilestones, selectedPort, milestonePortSearch, milestoneMawbSearch, milestoneCreationSearch, milestoneMissingSearch, milestoneSortField, milestoneSortDirection]);
 
-  // Update filtered entries whenever processed entries change
+  // Update filtered entries whenever processed entries change or search changes
   useEffect(() => {
     setFilteredPGAEntries(processedPGAEntries);
     setPgaCurrentPage(1);
@@ -346,6 +369,7 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
       '#': milestoneStartIndex + index + 1,
       'Port': entry.port,
       'MAWB Number': entry.mawbNumber,
+      'Creation Time': entry.creationTime ? entry.creationTime.toLocaleDateString() : '',
       'Missing Milestone': entry.missingMilestones
     }));
     exportToExcel(dataToExport, `T01_Missing_Milestones_${new Date().toISOString().split('T')[0]}`);
@@ -367,7 +391,7 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
     <div className="missing-data-container">
       <header className="missing-data-header">
         <h1>Data Quality Monitor</h1>
-        <p className="header-subtitle">PGA Entry Status Check & T01 Missing Milestones</p>
+        <p className="header-subtitle"></p>
       </header>
 
       {/* Filters Section */}
@@ -570,7 +594,7 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
             <span className="info-icon-wrapper">
               <span className="info-icon">⚠️</span>
               <span className="tooltip">
-                Missing milestones are detected only for: Release Date, CPSC/PGA Check Date, CPSC/PGA Release Date, Custom Final Release, and Handover Time
+                Missing milestones are detected for ALL T01 shipments: Handover Time, Release Date, CPSC/PGA Check Date, CPSC/PGA Release Date, and Custom Final Release. Any combination of missing fields (1, 2, 3, 4, or all 5) will be shown.
               </span>
             </span>
           </h3>
@@ -578,7 +602,7 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
             📊 Export to Excel
           </button>
         </div>
-        <p className="table-subtitle">Records with O column filled but missing data in P, N, M, L, or K columns</p>
+        <p className="table-subtitle">All T01 shipments missing data in any of: Handover Time, Release Date, CPSC/PGA Check Date, CPSC/PGA Release Date, or Custom Final Release</p>
         
         <table className="pga-table">
           <thead>
@@ -630,6 +654,28 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
               </th>
               <th>
                 <div className="header-with-controls">
+                  <span>Creation Time</span>
+                  <div className="header-controls">
+                    <button 
+                      className={`sort-btn ${milestoneSortField === 'creationTime' ? milestoneSortDirection : ''}`}
+                      onClick={() => handleMilestoneSort('creationTime')}
+                      title="Sort"
+                    >
+                      {milestoneSortField === 'creationTime' && milestoneSortDirection === 'asc' ? '↑' : 
+                       milestoneSortField === 'creationTime' && milestoneSortDirection === 'desc' ? '↓' : '↕'}
+                    </button>
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  className="column-search"
+                  placeholder="Search date..."
+                  value={milestoneCreationSearch}
+                  onChange={(e) => setMilestoneCreationSearch(e.target.value)}
+                />
+              </th>
+              <th>
+                <div className="header-with-controls">
                   <span>Missing Milestone</span>
                   <div className="header-controls">
                     <button 
@@ -659,13 +705,14 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
                   <td>{milestoneStartIndex + index + 1}</td>
                   <td>{entry.port}</td>
                   <td>{entry.mawbNumber}</td>
+                  <td>{entry.creationTime ? entry.creationTime.toLocaleDateString() : ''}</td>
                   <td className="missing-milestones-column">{entry.missingMilestones}</td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={4} className="no-data-cell">
-                  {milestonePortSearch || milestoneMawbSearch || milestoneMissingSearch ? 'No matching records found' : 'No T01 missing milestone records found'}
+                <td colSpan={5} className="no-data-cell">
+                  {milestonePortSearch || milestoneMawbSearch || milestoneCreationSearch || milestoneMissingSearch ? 'No matching records found' : 'No T01 missing milestone records found'}
                 </td>
               </tr>
             )}
