@@ -71,7 +71,7 @@ const DriverKPI: React.FC<DriverKPIProps> = ({ uploadedData }) => {
       console.log('  C (MAWB):', data[2][2]);
       console.log('  D (Date to filter):', data[2][3]);
       console.log('  F (ATA Date):', data[2][5]);
-      console.log('  I (Arrived at Warehouse):', data[2][8]);
+      console.log('  P (Arrived at Warehouse):', data[2][15]);
     }
     
     const processed: ProcessedData = {
@@ -144,7 +144,7 @@ const DriverKPI: React.FC<DriverKPIProps> = ({ uploadedData }) => {
       const mawbNumber = String(row[2] || '').trim();
       // F column (index 5): ATA Date, I column (index 8): Arrived at Warehouse
       const ataDateValue = row[5]; // F column
-      const arrivedValue = row[8]; // I column
+      const arrivedValue = row[15]; // I column
       
       // Add category to the list if it's valid (T01 or T86)
       if (category === 'T01' || category === 'T86') {
@@ -814,7 +814,7 @@ const DriverKPI: React.FC<DriverKPIProps> = ({ uploadedData }) => {
           <p style={{ color: '#666', fontSize: '14px', marginTop: '10px' }}>
             Make sure your Excel file has:
             <br />1. Dates in column D that are after 2025-07-01
-            <br />2. Valid dates in columns F (ATA Date) and I (Arrived at Warehouse)
+            <br />2. Valid dates in columns F (ATA Date) and P (Arrived at Warehouse)
             <br />3. Category (T01 or T86) in column A
           </p>
         </div>

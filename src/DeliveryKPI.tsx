@@ -121,8 +121,8 @@ const DeliveryKPI: React.FC<DeliveryKPIProps> = ({ uploadedData }) => {
       console.log('  B (Port):', data[2][1]);
       console.log('  C (MAWB):', data[2][2]);
       console.log('  D (Date to filter):', data[2][3]);
-      console.log('  O (Consigned to Final Mile Carrier Date):', data[2][14]);
-      console.log('  P (Handover Time):', data[2][15]);
+      console.log('  V (Consigned to Final Mile Carrier Date):', data[2][21]);
+      console.log('  W (Handover Time):', data[2][22]);
     }
 
     const processed: ProcessedData = {
@@ -201,8 +201,8 @@ const DeliveryKPI: React.FC<DeliveryKPIProps> = ({ uploadedData }) => {
       const port = String(row[1] || '').trim();
       const mawbNumber = String(row[2] || '').trim();
       // O column (index 14): Consigned to Final Mile Carrier Date, P column (index 15): Handover Time
-      const consignedDateValue = row[14]; // O column
-      const handoverTimeValue = row[15]; // P column
+      const consignedDateValue = row[21]; // O column
+      const handoverTimeValue = row[22]; // P column
 
       // Add category to the list if it's valid (T01 or T86)
       if (category === 'T01' || category === 'T86') {
@@ -1083,7 +1083,7 @@ const DeliveryKPI: React.FC<DeliveryKPIProps> = ({ uploadedData }) => {
             <br />
             1. Dates in column D that are after 2025-07-01
             <br />
-            2. Valid dates in columns O (Consigned to Final Mile Carrier Date) and P (Handover Time)
+            2. Valid dates in columns V (Consigned to Final Mile Carrier Date) and W (Handover Time)
             <br />
             3. Category (T01 or T86) in column A
           </p>

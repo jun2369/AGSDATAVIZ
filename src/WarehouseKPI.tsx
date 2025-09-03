@@ -121,8 +121,8 @@ const WarehouseKPI: React.FC<WarehouseKPIProps> = ({ uploadedData }) => {
       console.log('  B (Port):', data[2][1]);
       console.log('  C (MAWB):', data[2][2]);
       console.log('  D (Date to filter):', data[2][3]);
-      console.log('  N (Custom Final Release Date):', data[2][13]);
-      console.log('  O (Consigned to Final Mile Carrier Date):', data[2][14]);
+      console.log('  U (Custom Final Release Date):', data[2][21]);
+      console.log('  V (Consigned to Final Mile Carrier Date):', data[2][22]);
     }
 
     const processed: ProcessedData = {
@@ -201,8 +201,8 @@ const WarehouseKPI: React.FC<WarehouseKPIProps> = ({ uploadedData }) => {
       const port = String(row[1] || '').trim();
       const mawbNumber = String(row[2] || '').trim();
       // N column (index 13): Custom Final Release Date, O column (index 14): Consigned to Final Mile Carrier Date
-      const customReleaseDateValue = row[13]; // N column
-      const consignedDateValue = row[14]; // O column
+      const customReleaseDateValue = row[20]; // N column
+      const consignedDateValue = row[21]; // O column
 
       // Add category to the list if it's valid (T01 or T86)
       if (category === 'T01' || category === 'T86') {
@@ -1083,7 +1083,7 @@ const WarehouseKPI: React.FC<WarehouseKPIProps> = ({ uploadedData }) => {
             <br />
             1. Dates in column D that are after 2025-07-01
             <br />
-            2. Valid dates in columns N (Custom Final Release Date) and O
+            2. Valid dates in columns U (Custom Final Release Date) and V
             (Consigned to Final Mile Carrier Date)
             <br />
             3. Category (T01 or T86) in column A

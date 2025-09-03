@@ -240,10 +240,10 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
 
       const mawbNumber = String(row[2] || '').trim();
       
-      const releaseDate = parseExcelDate(row[isTEMU ? 11 : 10]);
-      const ConsigntoFinalate = parseExcelDate(row[isTEMU ? 15 : 14]);
-      const handoverTime = parseExcelDate(row[isTEMU ? 16 : 15]);
-      const finalReleasedDate = parseExcelDate(row[isTEMU ? 14 : 13]);
+      const releaseDate = parseExcelDate(row[isTEMU ? 18 : 10]);
+      const ConsigntoFinalate = parseExcelDate(row[isTEMU ? 22 : 14]);
+      const handoverTime = parseExcelDate(row[isTEMU ? 23 : 15]);
+      const finalReleasedDate = parseExcelDate(row[isTEMU ? 21 : 13]);
 
       if (ataDate && releaseDate) {
         const diffHours = (releaseDate.getTime() - ataDate.getTime()) / (1000 * 60 * 60);

@@ -61,11 +61,11 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
 
   // Column mappings for missing milestones
   const milestoneColumns: { [key: number]: string } = {
-    15: 'Handover Time',
-    10: 'Release Date',
-    11: 'CPSC/PGA Check Date',
-    12: 'CPSC/PGA Release Date',
-    13: 'Custom Final Release'
+    22: 'Handover Time',
+    17: 'Release Date',
+    18: 'CPSC/PGA Check Date',
+    19: 'CPSC/PGA Release Date',
+    20: 'Custom Final Release'
   };
 
   // Helper function to parse Excel date
@@ -132,7 +132,7 @@ const MissingData: React.FC<MissingDataProps> = ({ uploadedData }) => {
       if (port && ['ORD', 'JFK', 'MIA', 'LAX', 'DFW', 'SFO'].includes(port)) {
         
         // 1. PGA Entry Status Check - G column (index 6)
-        const pgaStatus = String(row[6] || '').trim().toUpperCase();
+        const pgaStatus = String(row[7] || '').trim().toUpperCase();
         if (pgaStatus === 'N') {
           processedPGAEntries.push({
             category,
