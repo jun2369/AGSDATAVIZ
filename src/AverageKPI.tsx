@@ -99,7 +99,9 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
 
     let data = uploadedData.data;
     const isTEMU = uploadedData.fileName && uploadedData.fileName.toLowerCase().includes('temu');
+    const isSHEIN = uploadedData.fileName && uploadedData.fileName.toLowerCase().includes('shein');
     
+    // 对于TEMU，插入1个空列；对于SHEIN，不插入空列
     if (isTEMU) {
       data = data.map((row: any) => {
         if (!row || !Array.isArray(row)) return row;
@@ -108,6 +110,7 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
         return newRow;
       });
     }
+    // SHEIN不需要插入空列，直接使用原始数据
     
     const poesSet = new Set<string>(['ALL']);
     const categoriesSet = new Set<string>(['ALL']);
@@ -178,7 +181,9 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
 
     let data = uploadedData.data;
     const isTEMU = uploadedData.fileName && uploadedData.fileName.toLowerCase().includes('temu');
+    const isSHEIN = uploadedData.fileName && uploadedData.fileName.toLowerCase().includes('shein');
     
+    // 对于TEMU，插入1个空列；对于SHEIN，不插入空列
     if (isTEMU) {
       data = data.map((row: any) => {
         if (!row || !Array.isArray(row)) return row;
@@ -187,6 +192,7 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
         return newRow;
       });
     }
+    // SHEIN不需要插入空列，直接使用原始数据
 
     const ataToReleasedList: KPIRow[] = [];
     const ataToConsigntoFinalList: KPIRow[] = [];
@@ -240,10 +246,28 @@ const AverageKPI: React.FC<AverageKPIProps> = ({ uploadedData }) => {
 
       const mawbNumber = String(row[2] || '').trim();
       
-      const releaseDate = parseExcelDate(row[isTEMU ? 17 : 10]);
-      const ConsigntoFinalate = parseExcelDate(row[isTEMU ? 21 : 14]);
-      const handoverTime = parseExcelDate(row[isTEMU ? 22 : 15]);
-      const finalReleasedDate = parseExcelDate(row[isTEMU ? 20 : 13]);
+      // 根据文件类型使用不同的列索引
+      let releaseDate, ConsigntoFinalate, handoverTime, finalReleasedDate;
+      
+      if (isSHEIN) {
+        // SHEIN文件的列索引
+        releaseDate = parseExcelDate(row[17]);        // R列
+        ConsigntoFinalate = parseExcelDate(row[21]);  // V列
+        handoverTime = parseExcelDate(row[22]);       // W列
+        finalReleasedDate = parseExcelDate(row[20]);  // U列
+      } else if (isTEMU) {
+        // TEMU文件的列索引（插入1个空列后）
+        releaseDate = parseExcelDate(row[11]);        // K列变成L列
+        ConsigntoFinalate = parseExcelDate(row[15]);  // O列变成P列
+        handoverTime = parseExcelDate(row[16]);       // P列变成Q列
+        finalReleasedDate = parseExcelDate(row[14]);  // N列变成O列
+      } else {
+        // 普通文件的列索引
+        releaseDate = parseExcelDate(row[10]);        // K列
+        ConsigntoFinalate = parseExcelDate(row[14]);  // O列
+        handoverTime = parseExcelDate(row[15]);       // P列
+        finalReleasedDate = parseExcelDate(row[13]);  // N列
+      }
 
       if (ataDate && releaseDate) {
         const diffHours = (releaseDate.getTime() - ataDate.getTime()) / (1000 * 60 * 60);
